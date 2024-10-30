@@ -72,3 +72,4 @@ sudo nixos-rebuild build-vm .#<hostname>
 [Home Manager Option Search](https://mipmip.github.io/home-manager-option-search/)
 [manix](https://github.com/lecoqjacob/manix)
 [Nixpkgs GitHub Repository](https://github.com/nixos/nixpkgs)
+[YouTube series](https://www.youtube.com/watch?v=a67Sv4Mbxmc&list=PLko9chwSoP-15ZtZxu64k_CuTzXrFpxPE)
