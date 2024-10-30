@@ -5,13 +5,13 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC20Errors} from "@openzeppelin/contracts/interfaces/draft-IERC6093.sol";
+import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 
 import {BaseToken} from "./BaseToken.sol";
 import {IFluentToken} from "../interfaces/IFluentToken.sol";
-import {StorageUtils} from "../lib/StorageUtils.sol";
+
 import {FlowUtils} from "../lib/FlowUtils.sol";
 import {AccountUtils} from "../lib/AccountUtils.sol";
 
@@ -43,7 +43,12 @@ contract FluentToken is IFluentToken, BaseToken, UUPSUpgradeable {
         bytes32 account = sender.account();
         uint256 bitmap = _flowStates[account];
 
-        (bytes32 id, uint8 index) = FlowUtils.initiateFlow(account, bitmap, recipient, rate);
+        (bytes32 id, uint8 index) = FlowUtils.initiateFlow(
+            account,
+            bitmap,
+            recipient,
+            rate
+        );
 
         // Add flow to register
         _flows.add(id);
@@ -56,57 +61,18 @@ contract FluentToken is IFluentToken, BaseToken, UUPSUpgradeable {
         address sender = _msgSender();
         bytes32 account = sender.account();
 
-        if (!FlowUtils.isSender(flow, account)) {
-            revert("user not owner of stream");
-        }
-
-        // Get the index of the flow
-        uint8 index = FlowUtils.flowIndex(account, flow);
-
-        // Get the actual data of the flow
-        bytes32 slot = FlowUtils.flowStorage(flow);
-        FlowUtils.FlowData memory data = FlowUtils.flowData(flow);
-
-        // Calculate the total amount streamed
-        uint256 elapsed = block.timestamp - data.timestamp;
-        int256 total = int256(elapsed * data.rate);
+        (address recipient, uint8 index, int256 total) = FlowUtils
+            .terminateFlow(account, flow);
 
         // Update the balances of both the sender and recipient
-        _balances[data.recipient] += total;
+        _balances[recipient] += total;
         _balances[sender] -= total;
 
         // Remove flow from register
         _flows.remove(flow);
         _flowStates[account] |= (1 << index);
 
-        // Delete flow data
-        StorageUtils.clear(slot, FlowUtils.FLOW_STORAGE_SIZE);
-
         // emit StreamStopped(sender, streamIndex);
-    }
-
-    function mapAccountFlows(
-        address user
-    ) external view returns (bytes32[] memory) {
-        bytes32 account = user.account();
-        uint256 bitmap = _flowStates[account];
-
-        bytes32[] memory result = new bytes32[](FlowUtils.USER_MAX_STREAMS);
-
-        uint8 i = 0;
-        uint8 n = 0;
-
-        while (i < FlowUtils.USER_MAX_STREAMS) {
-            if ((bitmap & (1 << i)) != 0) {
-                result[n++] = FlowUtils.flowId(account, i++);
-            }
-        }
-
-        assembly {
-            mstore(result, n)
-        }
-
-        return result;
     }
 
     /**************************************************************************
@@ -126,42 +92,28 @@ contract FluentToken is IFluentToken, BaseToken, UUPSUpgradeable {
         for (uint i = 0; i < _flows.length(); i++) {
             bytes32 flow = _flows.at(i);
 
-            if (
-                FlowUtils.isSender(flow, account) ||
-                FlowUtils.isRecipient(flow, user)
-            ) {
-                FlowUtils.FlowData memory data = FlowUtils.flowData(flow);
+            // if (
+            //     FlowUtils.isSender(flow, account) ||
+            //     FlowUtils.isRecipient(flow, user)
+            // ) {
+            //     FlowUtils.FlowData memory data = FlowUtils.flowData(flow);
 
+            //     // bytes32 slot = _flowStorage(flow);
+            //     // bytes32[] memory data = slot.loadData(FLOW_STORAGE_SIZE);
 
-                // bytes32 slot = _flowStorage(flow);
-                // bytes32[] memory data = slot.loadData(FLOW_STORAGE_SIZE);
-
-                //  account is sender or recipient
-                //  load the stream data
-                //
-                // FlowData({
-                //     recipient: address(uint160(uint256(data[0]))),
-                //     timestamp: uint256(data[1]),
-                //     rate: uint256(data[2])
-                // });
-                // StreamData memory data = _loadStreamData(_streams.at(i));
-                // if (data.recipient == account || data.sender == account) {}
-                // calculate balances
-            }
+            //     //  account is sender or recipient
+            //     //  load the stream data
+            //     //
+            //     // FlowData({
+            //     //     recipient: address(uint160(uint256(data[0]))),
+            //     //     timestamp: uint256(data[1]),
+            //     //     rate: uint256(data[2])
+            //     // });
+            //     // StreamData memory data = _loadStreamData(_streams.at(i));
+            //     // if (data.recipient == account || data.sender == account) {}
+            //     // calculate balances
+            // }
         }
-    }
-
-    // Find the next availble flow slot for this account
-    function _nextFlowIndex(bytes32 account) private view returns (uint8) {
-        uint256 bitmap = _flowStates[account];
-
-        for (uint8 i = 0; i < FlowUtils.USER_MAX_STREAMS; i++) {
-            if ((bitmap & (1 << i)) == 0) {
-                return i;
-            }
-        }
-
-        revert("No available slot");
     }
 
     /**************************************************************************

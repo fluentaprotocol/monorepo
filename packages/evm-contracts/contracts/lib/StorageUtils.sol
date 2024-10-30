@@ -2,7 +2,7 @@
 pragma solidity ^0.8.27;
 
 library StorageUtils {
-    function store(bytes32 slot, bytes32[] memory data) internal {
+    function store(bytes32 slot, bytes32[] memory data) internal  {
         for (uint i = 0; i < data.length; ++i) {
             bytes32 d = data[i];
 

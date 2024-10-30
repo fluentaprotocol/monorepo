@@ -23,36 +23,79 @@ library FlowUtils {
     uint256 internal constant USER_MAX_STREAMS = 256;
     uint256 internal constant FLOW_STORAGE_SIZE = 3;
 
-    // // Account functions
-    // function accountId(address user) internal pure returns (bytes32) {
-    //     return keccak256(abi.encode(USER_NAMESPACE, user));
-    // }
-
-    // stream functions
-
+    // Flow utilities
     function initiateFlow(
         bytes32 account,
         uint256 bitmap,
         address recipient,
         uint256 rate
-    ) internal returns (bytes32, uint8) {
-        uint8 index = 0;
-
-        bytes32 id = flowId(account, index);
-        bytes32 slot = flowStorage(id);
-        bytes32[] memory data = encodeFlowData(recipient, rate, block.timestamp);
+    ) internal returns (bytes32 id, uint8 index) {
+        index = _availableSlot(bitmap);
+        id = _flowId(account, index);
+        
+        bytes32 slot = _flowStorage(id);
+        bytes32[] memory data = _encodeFlowData(
+            recipient,
+            rate,
+            block.timestamp
+        );
 
         StorageUtils.store(slot, data);
 
         return (id, index);
     }
 
+    function terminateFlow(
+        bytes32 account,
+        bytes32 flow
+    ) internal returns (address, uint8, int256) {
+        if (!_isSender(flow, account)) {
+            revert("user not owner of stream");
+        }
+
+        // Get the index of the flow
+        uint8 index = _flowIndex(account, flow);
+        bytes32 slot = _flowStorage(flow);
+
+        FlowUtils.FlowData memory data = _decodeFlowData(flow);
+
+        // Calculate the total amount streamed
+        uint256 elapsed = block.timestamp - data.timestamp;
+        int256 total = int256(elapsed * data.rate);
+
+        StorageUtils.clear(slot, FlowUtils.FLOW_STORAGE_SIZE);
+
+        return (data.recipient, index, total);
+    }
+
+    function accountFlows(
+        bytes32 account,
+        uint256 bitmap
+    ) internal pure returns (bytes32[] memory) {
+        bytes32[] memory result = new bytes32[](FlowUtils.USER_MAX_STREAMS);
+
+        uint8 i = 0;
+        uint8 n = 0;
+
+        while (i < FlowUtils.USER_MAX_STREAMS) {
+            if ((bitmap & (1 << i)) != 0) {
+                result[n++] = _flowId(account, i++);
+            }
+        }
+
+        assembly {
+            mstore(result, n)
+        }
+
+        return result;
+    }
+
     // Encoding / Decoding
-    function encodeFlowData(
+    function _encodeFlowData(
         address recipient,
         uint256 rate,
         uint256 timestamp
-    ) private view returns (bytes32[] memory) {
+    ) private pure returns (bytes32[] memory) {
         bytes32[] memory data = new bytes32[](FLOW_STORAGE_SIZE);
 
         data[0] = bytes32(uint256(uint160(recipient)));
@@ -62,28 +105,10 @@ library FlowUtils {
         return data;
     }
 
-    function decodeFlowData() internal {}
-
-    function flowId(
-        bytes32 account,
-        uint8 index
-    ) internal pure returns (bytes32 slot) {
-        assembly {
-            slot := add(account, add(index, 1))
-        }
-    }
-
-    function flowIndex(
-        bytes32 account,
+    function _decodeFlowData(
         bytes32 flow
-    ) internal pure returns (uint8 index) {
-        assembly {
-            index := sub(sub(flow, account), 1)
-        }
-    }
-
-    function flowData(bytes32 flow) internal view returns (FlowData memory) {
-        bytes32 slot = flowStorage(flow);
+    ) private view returns (FlowData memory) {
+        bytes32 slot = _flowStorage(flow);
         bytes32[] memory data = StorageUtils.load(slot, FLOW_STORAGE_SIZE);
 
         return
@@ -94,14 +119,43 @@ library FlowUtils {
             });
     }
 
-    function flowStorage(bytes32 flow) internal pure returns (bytes32) {
+    // helper functions
+    function _flowId(
+        bytes32 account,
+        uint8 index
+    ) private pure returns (bytes32 slot) {
+        assembly {
+            slot := add(account, add(index, 1))
+        }
+    }
+
+    function _flowIndex(
+        bytes32 account,
+        bytes32 flow
+    ) private pure returns (uint8 index) {
+        assembly {
+            index := sub(sub(flow, account), 1)
+        }
+    }
+
+    function _flowStorage(bytes32 flow) private pure returns (bytes32) {
         return keccak256(abi.encode(FLOW_NAMESPACE, flow));
     }
 
-    function isSender(
+    function _availableSlot(uint256 bitmap) private pure returns (uint8) {
+        for (uint8 i = 0; i < FlowUtils.USER_MAX_STREAMS; i++) {
+            if ((bitmap & (1 << i)) == 0) {
+                return i;
+            }
+        }
+
+        revert("No available slot");
+    }
+
+    function _isSender(
         bytes32 flow,
         bytes32 account
-    ) internal pure returns (bool) {
+    ) private pure returns (bool) {
         bytes32 min;
         bytes32 max;
 
@@ -117,7 +171,7 @@ library FlowUtils {
         bytes32 flow,
         address account
     ) internal view returns (bool) {
-        bytes32 slot = flowStorage(flow);
+        bytes32 slot = _flowStorage(flow);
         bytes32 recipient;
 
         assembly {
