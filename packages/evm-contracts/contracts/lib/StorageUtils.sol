@@ -12,20 +12,6 @@ library StorageUtils {
         }
     }
 
-    // function empty(bytes32 slot, uint dataLength) internal view returns (bool) {
-    //     for (uint j = 0; j < dataLength; ++j) {
-    //         bytes32 d;
-
-    //         assembly {
-    //             d := sload(add(slot, j))
-    //         }
-
-    //         if (uint256(d) > 0) return false;
-    //     }
-
-    //     return true;
-    // }
-
     function load(
         bytes32 slot,
         uint dataLength
@@ -47,4 +33,18 @@ library StorageUtils {
             }
         }
     }
+
+    // function empty(bytes32 slot, uint dataLength) internal view returns (bool) {
+    //     for (uint j = 0; j < dataLength; ++j) {
+    //         bytes32 d;
+
+    //         assembly {
+    //             d := sload(add(slot, j))
+    //         }
+
+    //         if (uint256(d) > 0) return false;
+    //     }
+
+    //     return true;
+    // }
 }

@@ -12,19 +12,7 @@ import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet
 import {BaseToken} from "./BaseToken.sol";
 import {IFluentToken} from "../interfaces/IFluentToken.sol";
 import {StorageUtils} from "../lib/StorageUtils.sol";
-
-// uint256 constant MINUTE_INTERVAL = 60;
-// uint256 constant HOURLY_INTERVAL = 3600; // 60 * 60
-// uint256 constant DAILY_INTERVAL = 86400; // 24 * 60 * 60
-// uint256 constant WEEKLY_INTERVAL = 604800; // 7 * 24 * 60 * 60
-// uint256 constant MONTHLY_INTERVAL = 2592000; // (365 / 12) * 24 * 60 * 60
-// uint256 constant YEARLY_INTERVAL = 31536000; // (365 * 24 * 60 * 60)
-
-struct FlowData {
-    address recipient;
-    uint256 timestamp;
-    uint256 rate;
-}
+import {FlowUtils} from "../lib/FlowUtils.sol";
 
 contract FluentToken is IFluentToken, BaseToken, UUPSUpgradeable {
     using EnumerableSet for EnumerableSet.Bytes32Set;
@@ -55,12 +43,12 @@ contract FluentToken is IFluentToken, BaseToken, UUPSUpgradeable {
      *************************************************************************/
     function initiateFlow(address recipient, uint256 flowRate) external {
         address sender = _msgSender();
-        bytes32 account = _accountId(sender);
+        bytes32 account = FlowUtils.accountId(sender);
 
         uint8 index = _nextFlowIndex(account);
 
-        bytes32 id = _flowId(account, index);
-        bytes32 slot = _flowStorage(id);
+        bytes32 id = FlowUtils.flowId(account, index);
+        bytes32 slot = FlowUtils.flowStorage(id);
 
         bytes32[] memory data = new bytes32[](FLOW_STORAGE_SIZE);
 
@@ -81,18 +69,18 @@ contract FluentToken is IFluentToken, BaseToken, UUPSUpgradeable {
 
     function terminateFlow(bytes32 flow) external {
         address sender = _msgSender();
-        bytes32 account = _accountId(sender);
+        bytes32 account = FlowUtils.accountId(sender);
 
-        if (!_isFlowSender(flow, account)) {
+        if (!FlowUtils.isSender(flow, account)) {
             revert("user not owner of stream");
         }
 
         // Get the index of the flow
-        uint8 index = _flowIndex(account, flow);
+        uint8 index = FlowUtils.flowIndex(account, flow);
 
         // Get the actual data of the flow
-        bytes32 slot = _flowStorage(flow);
-        FlowData memory data = _flowData(flow);
+        bytes32 slot = FlowUtils.flowStorage(flow);
+        FlowUtils.FlowData memory data = FlowUtils.flowData(flow);
 
         // Calculate the total amount streamed
         uint256 elapsed = block.timestamp - data.timestamp;
@@ -115,7 +103,7 @@ contract FluentToken is IFluentToken, BaseToken, UUPSUpgradeable {
     function mapAccountFlows(
         address user
     ) external view returns (bytes32[] memory) {
-        bytes32 account = _accountId(user);
+        bytes32 account = FlowUtils.accountId(user);
         uint256 bitmap = _flowStates[account];
 
         bytes32[] memory result = new bytes32[](MAX_STREAMS);
@@ -125,7 +113,7 @@ contract FluentToken is IFluentToken, BaseToken, UUPSUpgradeable {
 
         while (i < MAX_STREAMS) {
             if ((bitmap & (1 << i)) != 0) {
-                result[n++] = _flowId(account, i++);
+                result[n++] = FlowUtils.flowId(account, i++);
             }
         }
 
@@ -148,13 +136,16 @@ contract FluentToken is IFluentToken, BaseToken, UUPSUpgradeable {
     }
 
     function timestampBalanceOf(address user) public view {
-        bytes32 account = _accountId(user);
+        bytes32 account = FlowUtils.accountId(user);
 
         for (uint i = 0; i < _flows.length(); i++) {
             bytes32 flow = _flows.at(i);
 
-            if (_isFlowSender(flow, account) || _isFlowRecipient(flow, user)) {
-                FlowData memory data = _flowData(flow);
+            if (
+                FlowUtils.isSender(flow, account) ||
+                FlowUtils.isRecipient(flow, user)
+            ) {
+                FlowUtils.FlowData memory data = FlowUtils.flowData(flow);
                 // bytes32 slot = _flowStorage(flow);
                 // bytes32[] memory data = slot.loadData(FLOW_STORAGE_SIZE);
 
@@ -173,46 +164,6 @@ contract FluentToken is IFluentToken, BaseToken, UUPSUpgradeable {
         }
     }
 
-    /**************************************************************************
-     * Flow helper functions
-     *************************************************************************/
-    function _accountId(address user) private pure returns (bytes32) {
-        return keccak256(abi.encode(USER_NAMESPACE, user));
-    }
-
-    // Calculate the flow id based on index
-    function _flowId(
-        bytes32 account,
-        uint8 index
-    ) private pure returns (bytes32 slot) {
-        assembly {
-            slot := add(account, add(index, 1))
-        }
-    }
-
-    // Calculate the index based on flow id
-    function _flowIndex(
-        bytes32 account,
-        bytes32 flow
-    ) private pure returns (uint8 index) {
-        assembly {
-            index := sub(sub(flow, account), 1)
-        }
-    }
-
-    // Calculate the flow id based on index
-    function _flowData(bytes32 flow) private view returns (FlowData memory) {
-        bytes32 slot = _flowStorage(flow);
-        bytes32[] memory data = StorageUtils.load(slot, FLOW_STORAGE_SIZE);
-
-        return
-            FlowData({
-                recipient: address(uint160(uint256(data[0]))),
-                timestamp: uint256(data[1]),
-                rate: uint256(data[2])
-            });
-    }
-
     // Find the next availble flow slot for this account
     function _nextFlowIndex(bytes32 account) private view returns (uint8) {
         uint256 bitmap = _flowStates[account];
@@ -224,42 +175,6 @@ contract FluentToken is IFluentToken, BaseToken, UUPSUpgradeable {
         }
 
         revert("No available slot");
-    }
-
-    // Calculate the storage slot for this flow
-    function _flowStorage(bytes32 flow) private pure returns (bytes32) {
-        return keccak256(abi.encode(FLOW_NAMESPACE, flow));
-    }
-
-    // Checks if account is sender of flow
-    function _isFlowSender(
-        bytes32 flow,
-        bytes32 account
-    ) internal pure returns (bool) {
-        bytes32 min;
-        bytes32 max;
-
-        assembly {
-            min := add(account, 1)
-            max := add(account, MAX_STREAMS)
-        }
-
-        return (flow >= min && flow <= max);
-    }
-
-    // Checks if account is recipient of flow
-    function _isFlowRecipient(
-        bytes32 flow,
-        address account
-    ) internal view returns (bool) {
-        bytes32 slot = _flowStorage(flow);
-        bytes32 recipient;
-
-        assembly{
-            recipient := sload(add(slot, 1))
-        }
-
-        return account == address(uint160(uint256(recipient)));
     }
 
     /**************************************************************************
