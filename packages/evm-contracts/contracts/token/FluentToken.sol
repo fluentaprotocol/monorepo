@@ -13,9 +13,11 @@ import {BaseToken} from "./BaseToken.sol";
 import {IFluentToken} from "../interfaces/IFluentToken.sol";
 import {StorageUtils} from "../lib/StorageUtils.sol";
 import {FlowUtils} from "../lib/FlowUtils.sol";
+import {AccountUtils} from "../lib/AccountUtils.sol";
 
 contract FluentToken is IFluentToken, BaseToken, UUPSUpgradeable {
     using EnumerableSet for EnumerableSet.Bytes32Set;
+    using AccountUtils for address;
     using SafeCast for uint256;
     using SafeCast for int256;
 
@@ -35,24 +37,13 @@ contract FluentToken is IFluentToken, BaseToken, UUPSUpgradeable {
     /**************************************************************************
      * Stream functions
      *************************************************************************/
-    function initiateFlow(address recipient, uint256 flowRate) external {
+    function initiateFlow(address recipient, uint256 rate) external {
         address sender = _msgSender();
-        bytes32 account = FlowUtils.accountId(sender);
 
-        uint8 index = _nextFlowIndex(account);
+        bytes32 account = sender.account();
+        uint256 bitmap = _flowStates[account];
 
-        bytes32 id = FlowUtils.flowId(account, index);
-        bytes32 slot = FlowUtils.flowStorage(id);
-
-        bytes32[] memory data = new bytes32[](FlowUtils.FLOW_STORAGE_SIZE);
-
-        // // Store data in byte slots
-        data[0] = bytes32(uint256(uint160(recipient)));
-        data[1] = bytes32(flowRate);
-        data[2] = bytes32(block.timestamp);
-
-        // Store flow data
-        StorageUtils.store(slot, data);
+        (bytes32 id, uint8 index) = FlowUtils.initiateFlow(account, bitmap, recipient, rate);
 
         // Add flow to register
         _flows.add(id);
@@ -63,7 +54,7 @@ contract FluentToken is IFluentToken, BaseToken, UUPSUpgradeable {
 
     function terminateFlow(bytes32 flow) external {
         address sender = _msgSender();
-        bytes32 account = FlowUtils.accountId(sender);
+        bytes32 account = sender.account();
 
         if (!FlowUtils.isSender(flow, account)) {
             revert("user not owner of stream");
@@ -97,7 +88,7 @@ contract FluentToken is IFluentToken, BaseToken, UUPSUpgradeable {
     function mapAccountFlows(
         address user
     ) external view returns (bytes32[] memory) {
-        bytes32 account = FlowUtils.accountId(user);
+        bytes32 account = user.account();
         uint256 bitmap = _flowStates[account];
 
         bytes32[] memory result = new bytes32[](FlowUtils.USER_MAX_STREAMS);
@@ -130,7 +121,7 @@ contract FluentToken is IFluentToken, BaseToken, UUPSUpgradeable {
     }
 
     function timestampBalanceOf(address user) public view {
-        bytes32 account = FlowUtils.accountId(user);
+        bytes32 account = user.account();
 
         for (uint i = 0; i < _flows.length(); i++) {
             bytes32 flow = _flows.at(i);
@@ -140,6 +131,8 @@ contract FluentToken is IFluentToken, BaseToken, UUPSUpgradeable {
                 FlowUtils.isRecipient(flow, user)
             ) {
                 FlowUtils.FlowData memory data = FlowUtils.flowData(flow);
+
+
                 // bytes32 slot = _flowStorage(flow);
                 // bytes32[] memory data = slot.loadData(FLOW_STORAGE_SIZE);
 
