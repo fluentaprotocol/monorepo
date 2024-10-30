@@ -20,8 +20,8 @@ library FlowUtils {
     string private constant USER_NAMESPACE = "fluenta.user";
     string private constant FLOW_NAMESPACE = "fluenta.flow";
 
-    uint256 private constant MAX_STREAMS = 256;
-    uint256 private constant FLOW_STORAGE_SIZE = 3;
+    uint256 constant USER_MAX_STREAMS = 256;
+    uint256 constant FLOW_STORAGE_SIZE = 3;
 
     function accountId(address user) public pure returns (bytes32) {
         return keccak256(abi.encode(USER_NAMESPACE, user));
@@ -70,7 +70,7 @@ library FlowUtils {
 
         assembly {
             min := add(account, 1)
-            max := add(account, MAX_STREAMS)
+            max := add(account, USER_MAX_STREAMS)
         }
 
         return (flow >= min && flow <= max);

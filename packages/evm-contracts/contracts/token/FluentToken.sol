@@ -19,12 +19,6 @@ contract FluentToken is IFluentToken, BaseToken, UUPSUpgradeable {
     using SafeCast for uint256;
     using SafeCast for int256;
 
-    string private constant USER_NAMESPACE = "fluenta.user";
-    string private constant FLOW_NAMESPACE = "fluenta.flow";
-
-    uint256 private constant FLOW_STORAGE_SIZE = 3;
-    uint256 private constant MAX_STREAMS = 256;
-
     EnumerableSet.Bytes32Set private _flows;
 
     mapping(bytes32 => uint256) private _flowStates;
@@ -50,7 +44,7 @@ contract FluentToken is IFluentToken, BaseToken, UUPSUpgradeable {
         bytes32 id = FlowUtils.flowId(account, index);
         bytes32 slot = FlowUtils.flowStorage(id);
 
-        bytes32[] memory data = new bytes32[](FLOW_STORAGE_SIZE);
+        bytes32[] memory data = new bytes32[](FlowUtils.FLOW_STORAGE_SIZE);
 
         // // Store data in byte slots
         data[0] = bytes32(uint256(uint160(recipient)));
@@ -95,7 +89,7 @@ contract FluentToken is IFluentToken, BaseToken, UUPSUpgradeable {
         _flowStates[account] |= (1 << index);
 
         // Delete flow data
-        StorageUtils.clear(slot, FLOW_STORAGE_SIZE);
+        StorageUtils.clear(slot, FlowUtils.FLOW_STORAGE_SIZE);
 
         // emit StreamStopped(sender, streamIndex);
     }
@@ -106,12 +100,12 @@ contract FluentToken is IFluentToken, BaseToken, UUPSUpgradeable {
         bytes32 account = FlowUtils.accountId(user);
         uint256 bitmap = _flowStates[account];
 
-        bytes32[] memory result = new bytes32[](MAX_STREAMS);
+        bytes32[] memory result = new bytes32[](FlowUtils.USER_MAX_STREAMS);
 
         uint8 i = 0;
         uint8 n = 0;
 
-        while (i < MAX_STREAMS) {
+        while (i < FlowUtils.USER_MAX_STREAMS) {
             if ((bitmap & (1 << i)) != 0) {
                 result[n++] = FlowUtils.flowId(account, i++);
             }
@@ -168,7 +162,7 @@ contract FluentToken is IFluentToken, BaseToken, UUPSUpgradeable {
     function _nextFlowIndex(bytes32 account) private view returns (uint8) {
         uint256 bitmap = _flowStates[account];
 
-        for (uint8 i = 0; i < MAX_STREAMS; i++) {
+        for (uint8 i = 0; i < FlowUtils.USER_MAX_STREAMS; i++) {
             if ((bitmap & (1 << i)) == 0) {
                 return i;
             }
