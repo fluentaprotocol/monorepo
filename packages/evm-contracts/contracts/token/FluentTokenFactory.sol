@@ -5,7 +5,7 @@ import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IER
 import {BeaconProxy} from "@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol";
 import {UUPSProxy} from "../upgradeability/UUPSProxy.sol";
 
-import {IFluentToken} from "../interfaces/IFluentToken.sol";
+import {IFluentToken} from "../interfaces/token/IFluentToken.sol";
 
 contract FluentTokenFactory {
     IFluentToken public immutable _TOKEN_IMPLEMENTAION;
