@@ -2,6 +2,7 @@
 pragma solidity ^0.8.27;
 
 import {StorageUtils} from "./StorageUtils.sol";
+import 'hardhat/console.sol';
 
 library FlowUtils {
     struct FlowData {
@@ -31,7 +32,7 @@ library FlowUtils {
         uint256 bitmap,
         address recipient,
         uint256 rate
-    ) internal returns (bytes32 id, uint8 index) {
+    ) internal returns (bytes32 id, uint index) {
         index = _availableSlot(bitmap);
         id = _flowId(account, index);
 
@@ -50,13 +51,13 @@ library FlowUtils {
     function terminateFlow(
         bytes32 account,
         bytes32 flow
-    ) internal returns (address, uint8, int256) {
+    ) internal returns (address, uint, int256) {
         if (!_isSender(flow, account)) {
             revert("user not owner of stream");
         }
 
         // Get the index of the flow
-        uint8 index = _flowIndex(account, flow);
+        uint index = _flowIndex(account, flow);
         bytes32 slot = _flowStorage(flow);
 
         FlowUtils.FlowData memory data = _decodeFlowData(flow);
@@ -74,14 +75,18 @@ library FlowUtils {
         bytes32 account,
         uint256 bitmap
     ) internal pure returns (bytes32[] memory) {
-        bytes32[] memory result = new bytes32[](FlowUtils.USER_MAX_FLOWS);
+        bytes32[] memory result = new bytes32[](USER_MAX_FLOWS);
 
-        uint8 i = 0;
-        uint8 n = 0;
+        uint i = 0;
+        uint n = 0;
 
-        while (i < FlowUtils.USER_MAX_FLOWS) {
+        while (i < USER_MAX_FLOWS) {
             if ((bitmap & (1 << i)) != 0) {
-                result[n++] = _flowId(account, i++);
+                result[n++] = _flowId(account, i);
+            }
+
+            unchecked {
+                i++;
             }
         }
 
@@ -128,7 +133,7 @@ library FlowUtils {
      *************************************************************************/
     function _flowId(
         bytes32 account,
-        uint8 index
+        uint index
     ) private pure returns (bytes32 slot) {
         assembly {
             slot := add(account, add(index, 1))
@@ -138,7 +143,7 @@ library FlowUtils {
     function _flowIndex(
         bytes32 account,
         bytes32 flow
-    ) private pure returns (uint8 index) {
+    ) private pure returns (uint index) {
         assembly {
             index := sub(sub(flow, account), 1)
         }
@@ -148,8 +153,8 @@ library FlowUtils {
         return keccak256(abi.encode(FLOW_NAMESPACE, flow));
     }
 
-    function _availableSlot(uint256 bitmap) private pure returns (uint8) {
-        for (uint8 i = 0; i < FlowUtils.USER_MAX_FLOWS; i++) {
+    function _availableSlot(uint256 bitmap) private pure returns (uint) {
+        for (uint i = 0; i < FlowUtils.USER_MAX_FLOWS; i++) {
             if ((bitmap & (1 << i)) == 0) {
                 return i;
             }

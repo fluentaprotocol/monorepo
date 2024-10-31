@@ -2,7 +2,8 @@
 pragma solidity ^0.8.27;
 
 import {Proxy} from "@openzeppelin/contracts/proxy/Proxy.sol";
-import {IUUPSProxy} from "../interfaces/upgradeability/IUUPSProxy";
+import {IUUPSProxy} from "../interfaces/upgradeability/IUUPSProxy.sol";
+
 /**
  * @title UUPS (Universal Upgradeable Proxy Standard) Proxy
  *

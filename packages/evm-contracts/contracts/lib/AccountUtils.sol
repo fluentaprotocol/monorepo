@@ -2,6 +2,7 @@
 pragma solidity ^0.8.27;
 
 import {StorageUtils} from "./StorageUtils.sol";
+import 'hardhat/console.sol';
 
 library AccountUtils {
     string private constant USER_NAMESPACE = "fluenta.user";

@@ -99,4 +99,12 @@ describe("FluentToken", function () {
             await expect(token.withdraw(amount)).to.be.revertedWithCustomError(token, "ERC20InsufficientBalance").withArgs(accountAddress, balance, amount);
         });
     });
+    
+    describe("Flows", function () {
+        it("# 3.1 Should allow account initiate flow", async function () {
+            await token.initiateFlow(attackerAddress, ETH_1);
+
+            expect((await token.mapAccountFlows()).length).to.eq(1);
+        });
+    });
 })

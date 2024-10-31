@@ -15,6 +15,8 @@ import {IFluentToken} from "../interfaces/token/IFluentToken.sol";
 import {FlowUtils} from "../lib/FlowUtils.sol";
 import {AccountUtils} from "../lib/AccountUtils.sol";
 
+import "hardhat/console.sol";
+
 contract FluentToken is IFluentToken, UUPSUpgradeable, ContextUpgradeable {
     using EnumerableSet for EnumerableSet.Bytes32Set;
     using AccountUtils for address;
@@ -92,7 +94,7 @@ contract FluentToken is IFluentToken, UUPSUpgradeable, ContextUpgradeable {
     }
 
     /**************************************************************************
-     * Stream functions
+     * Flow functions
      *************************************************************************/
     function initiateFlow(address recipient, uint256 rate) external {
         address sender = _msgSender();
@@ -100,7 +102,7 @@ contract FluentToken is IFluentToken, UUPSUpgradeable, ContextUpgradeable {
         bytes32 account = sender.account();
         uint256 bitmap = _states[account];
 
-        (bytes32 id, uint8 index) = FlowUtils.initiateFlow(
+        (bytes32 id, uint index) = FlowUtils.initiateFlow(
             account,
             bitmap,
             recipient,
@@ -118,7 +120,7 @@ contract FluentToken is IFluentToken, UUPSUpgradeable, ContextUpgradeable {
         address sender = _msgSender();
         bytes32 account = sender.account();
 
-        (address recipient, uint8 index, int256 total) = FlowUtils
+        (address recipient, uint index, int256 total) = FlowUtils
             .terminateFlow(account, flow);
 
         // Update the balances of both the sender and recipient
@@ -130,6 +132,12 @@ contract FluentToken is IFluentToken, UUPSUpgradeable, ContextUpgradeable {
         _states[account] |= (1 << index);
 
         // emit StreamStopped(sender, streamIndex);
+    }
+
+    function mapAccountFlows() external view returns (bytes32[] memory) {
+        bytes32 account = _msgSender().account();
+
+        return FlowUtils.accountFlows(account, _states[account]);
     }
 
     /**************************************************************************
