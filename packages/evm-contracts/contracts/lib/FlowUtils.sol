@@ -20,10 +20,12 @@ library FlowUtils {
     // string private constant USER_NAMESPACE = "fluenta.user";
     string private constant FLOW_NAMESPACE = "fluenta.flow";
 
-    uint256 internal constant USER_MAX_STREAMS = 256;
+    uint256 internal constant USER_MAX_FLOWS = 256;
     uint256 internal constant FLOW_STORAGE_SIZE = 3;
 
-    // Flow utilities
+    /**************************************************************************
+     * Flow controls
+     *************************************************************************/
     function initiateFlow(
         bytes32 account,
         uint256 bitmap,
@@ -32,7 +34,7 @@ library FlowUtils {
     ) internal returns (bytes32 id, uint8 index) {
         index = _availableSlot(bitmap);
         id = _flowId(account, index);
-        
+
         bytes32 slot = _flowStorage(id);
         bytes32[] memory data = _encodeFlowData(
             recipient,
@@ -72,12 +74,12 @@ library FlowUtils {
         bytes32 account,
         uint256 bitmap
     ) internal pure returns (bytes32[] memory) {
-        bytes32[] memory result = new bytes32[](FlowUtils.USER_MAX_STREAMS);
+        bytes32[] memory result = new bytes32[](FlowUtils.USER_MAX_FLOWS);
 
         uint8 i = 0;
         uint8 n = 0;
 
-        while (i < FlowUtils.USER_MAX_STREAMS) {
+        while (i < FlowUtils.USER_MAX_FLOWS) {
             if ((bitmap & (1 << i)) != 0) {
                 result[n++] = _flowId(account, i++);
             }
@@ -90,7 +92,9 @@ library FlowUtils {
         return result;
     }
 
-    // Encoding / Decoding
+    /**************************************************************************
+     * Encode / Decode
+     *************************************************************************/
     function _encodeFlowData(
         address recipient,
         uint256 rate,
@@ -119,7 +123,9 @@ library FlowUtils {
             });
     }
 
-    // helper functions
+    /**************************************************************************
+     * Helper functions
+     *************************************************************************/
     function _flowId(
         bytes32 account,
         uint8 index
@@ -143,7 +149,7 @@ library FlowUtils {
     }
 
     function _availableSlot(uint256 bitmap) private pure returns (uint8) {
-        for (uint8 i = 0; i < FlowUtils.USER_MAX_STREAMS; i++) {
+        for (uint8 i = 0; i < FlowUtils.USER_MAX_FLOWS; i++) {
             if ((bitmap & (1 << i)) == 0) {
                 return i;
             }
@@ -161,16 +167,16 @@ library FlowUtils {
 
         assembly {
             min := add(account, 1)
-            max := add(account, USER_MAX_STREAMS)
+            max := add(account, USER_MAX_FLOWS)
         }
 
         return (flow >= min && flow <= max);
     }
 
-    function isRecipient(
+    function _isRecipient(
         bytes32 flow,
         address account
-    ) internal view returns (bool) {
+    ) private view returns (bool) {
         bytes32 slot = _flowStorage(flow);
         bytes32 recipient;
 

@@ -2,7 +2,7 @@
 pragma solidity ^0.8.27;
 
 import {Proxy} from "@openzeppelin/contracts/proxy/Proxy.sol";
-
+import {IUUPSProxy} from "../interfaces/upgradeability/IUUPSProxy";
 /**
  * @title UUPS (Universal Upgradeable Proxy Standard) Proxy
  *
@@ -13,7 +13,7 @@ import {Proxy} from "@openzeppelin/contracts/proxy/Proxy.sol";
  *   return values and bubbling of failures.
  * - It defines a fallback function that delegates all calls to the implementation.
  */
-contract UUPSProxy is Proxy {
+contract UUPSProxy is IUUPSProxy, Proxy {
     bytes32 internal constant _IMPLEMENTATION_SLOT =
         0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc;
 
