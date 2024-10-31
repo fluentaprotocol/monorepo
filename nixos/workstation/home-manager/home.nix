@@ -123,8 +123,6 @@ in {
       # stdenv
       # synergy
       # swaycons
-      steam
-      steam-run
       #terminus-nerdfont
       tldr
       trash-cli

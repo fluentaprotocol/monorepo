@@ -53,7 +53,7 @@ a development environment, run:
 nix-shell
 ```
 
-## Other useful commands that I used during the exploration
+### Other useful commands that I used during the exploration
 
 ```sh
 sudo nix flake init --template github:vimjoyer/flake-starter-config
@@ -66,10 +66,24 @@ nix-collect-garbage --delete-older-than 1d
 sudo nixos-rebuild build-vm .#<hostname>
 ```
 
-## Resources
+### Resources
 
 [search.nixos.org](https://search.nixos.org/)
 [Home Manager Option Search](https://mipmip.github.io/home-manager-option-search/)
 [manix](https://github.com/lecoqjacob/manix)
 [Nixpkgs GitHub Repository](https://github.com/nixos/nixpkgs)
 [YouTube series](https://www.youtube.com/watch?v=a67Sv4Mbxmc&list=PLko9chwSoP-15ZtZxu64k_CuTzXrFpxPE)
+
+## System Information
+
+You can copy the `.config` folder to your home directory to get the same configuration.
+
+```sh
+cp -r .config ~/
+```
+
+There is installed `conky` to display system information. To start it, run:
+
+```sh
+conky -c ~/.config/conky/conky.conf
+```

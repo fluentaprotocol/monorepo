@@ -24,7 +24,7 @@
     config = {
       # Allow unfree packages
       allowUnfree = true;
-      #allowUnfreePredicate = pkg: builtins.elem (builtins.parseDrvName pkg.name).name ["steam"];
+      allowUnfreePredicate = pkg: builtins.elem (builtins.parseDrvName pkg.name).name ["steam"];
 
       #permittedInsecurePackages = [
       #    "openssl-1.1.1v"
@@ -49,6 +49,7 @@
     tmp.cleanOnBoot = true;
     supportedFilesystems = ["ntfs"];
     kernelModules = ["tcp_bbr"];
+    kernelParams = ["nohibernate"];
     kernel.sysctl = {
       "net.ipv4.tcp_congestion_control" = "bbr";
       "net.core.default_qdisc" = "fq";
@@ -87,6 +88,8 @@
     LC_TELEPHONE = "pl_PL.UTF-8";
     LC_TIME = "pl_PL.UTF-8";
   };
+
+  #services.journald.extraConfig = "Storage=persistent";
 
   # Enable the X11 windowing system.
   # You can disable this if you're only using the Wayland session.
@@ -190,6 +193,7 @@
     enable = true;
     remotePlay.openFirewall = true; # Open ports in the firewall for Steam Remote Play
     dedicatedServer.openFirewall = true; # Open ports in the firewall for Source Dedicated Server
+    localNetworkGameTransfers.openFirewall = true; # Open ports in the firewall for Steam Local Network Game Transfers
   };
 
   fonts = {
@@ -226,6 +230,17 @@
     #docker_27
     docker-compose
     nvidia-docker
+    steam
+    steam-run
+    conky
+    cron
+    #(waybar.overrideAttrs(oldAttrs:{
+    #  mesonFlags = oldAttrs.mesonFlags ++ [ "-Dexperimental=true" ];
+    #  })
+    #)
+    #dunst
+    #libnotify
+    #eww (diy)
   ];
   virtualisation.docker.enable = true;
   virtualisation.virtualbox.host.enable = true;
@@ -239,6 +254,17 @@
     enable = true;
     enableSSHSupport = true;
   };
+  
+  #programs.hyprland = {
+  #  enable = true;
+  #  nvidiaPatches = true;
+  #  xwayland.enable = true;
+  #};
+  #environment.sessionVariables = {
+    # if cusror becomes invisible
+    #WLR_NO_HARDWARE_CURSORS = "1";
+  #  NIXOS_OZONE_WL = "1";
+  #};
 
   # List services that you want to enable:
 
