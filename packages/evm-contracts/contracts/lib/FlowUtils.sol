@@ -2,12 +2,19 @@
 pragma solidity ^0.8.27;
 
 import {StorageUtils} from "./StorageUtils.sol";
-import 'hardhat/console.sol';
+import "hardhat/console.sol";
 
 library FlowUtils {
     struct FlowData {
         address recipient;
         uint256 timestamp;
+        uint256 rate;
+    }
+
+    struct FlowState {
+        uint256 timestamp;
+        uint256 deposit;
+        uint256 accrue;
         uint256 rate;
     }
 
@@ -20,30 +27,32 @@ library FlowUtils {
 
     // string private constant USER_NAMESPACE = "fluenta.user";
     string private constant FLOW_NAMESPACE = "fluenta.flow";
+    string private constant STATE_NAMESPACE = "fluenta.state";
 
     uint256 internal constant USER_MAX_FLOWS = 256;
-    uint256 internal constant FLOW_STORAGE_SIZE = 3;
+    uint256 internal constant FLOW_DATA_SIZE = 3;
+    uint256 internal constant FLOW_STATE_SIZE = 4;
 
     /**************************************************************************
      * Flow controls
      *************************************************************************/
     function initiateFlow(
         bytes32 account,
+        bytes32 recipient,
         uint256 bitmap,
-        address recipient,
         uint256 rate
     ) internal returns (bytes32 id, uint index) {
         index = _availableSlot(bitmap);
         id = _flowId(account, index);
 
-        bytes32 slot = _flowStorage(id);
-        bytes32[] memory data = _encodeFlowData(
-            recipient,
-            rate,
-            block.timestamp
-        );
+        bytes32 slot = _flowDataSlot(id);
+        uint256 timestamp = block.timestamp;
+
+        bytes32[] memory data = _encodeFlowData(recipient, rate, timestamp);
 
         StorageUtils.store(slot, data);
+
+        _increaseFlowState(account);
 
         return (id, index);
     }
@@ -58,15 +67,18 @@ library FlowUtils {
 
         // Get the index of the flow
         uint index = _flowIndex(account, flow);
-        bytes32 slot = _flowStorage(flow);
+        bytes32 slot = _flowDataSlot(flow);
 
         FlowUtils.FlowData memory data = _decodeFlowData(flow);
 
         // Calculate the total amount streamed
-        uint256 elapsed = block.timestamp - data.timestamp;
+        uint256 timestamp = block.timestamp;
+        uint256 elapsed = timestamp - data.timestamp;
         int256 total = int256(elapsed * data.rate);
 
-        StorageUtils.clear(slot, FlowUtils.FLOW_STORAGE_SIZE);
+        StorageUtils.clear(slot, FlowUtils.FLOW_DATA_SIZE);
+
+        // _updateFlowState(account, timestamp);
 
         return (data.recipient, index, total);
     }
@@ -101,15 +113,31 @@ library FlowUtils {
      * Encode / Decode
      *************************************************************************/
     function _encodeFlowData(
-        address recipient,
+        bytes32 recipient,
         uint256 rate,
         uint256 timestamp
     ) private pure returns (bytes32[] memory) {
-        bytes32[] memory data = new bytes32[](FLOW_STORAGE_SIZE);
+        bytes32[] memory data = new bytes32[](FLOW_DATA_SIZE);
 
-        data[0] = bytes32(uint256(uint160(recipient)));
+        data[0] = bytes32(recipient);
         data[1] = bytes32(rate);
         data[2] = bytes32(timestamp);
+
+        return data;
+    }
+
+    function _encodeFlowState(
+        uint256 timestamp,
+        uint256 deposit,
+        uint256 accrue,
+        uint256 rate
+    ) private pure returns (bytes32[] memory) {
+        bytes32[] memory data = new bytes32[](FLOW_STATE_SIZE);
+
+        data[0] = bytes32(timestamp);
+        data[1] = bytes32(deposit);
+        data[2] = bytes32(accrue);
+        data[3] = bytes32(rate);
 
         return data;
     }
@@ -117,8 +145,8 @@ library FlowUtils {
     function _decodeFlowData(
         bytes32 flow
     ) private view returns (FlowData memory) {
-        bytes32 slot = _flowStorage(flow);
-        bytes32[] memory data = StorageUtils.load(slot, FLOW_STORAGE_SIZE);
+        bytes32 slot = _flowDataSlot(flow);
+        bytes32[] memory data = StorageUtils.load(slot, FLOW_DATA_SIZE);
 
         return
             FlowData({
@@ -128,8 +156,56 @@ library FlowUtils {
             });
     }
 
+    function _decodeFlowState(
+        bytes32 account
+    ) private view returns (FlowState memory) {
+        bytes32 slot = _flowStateSlot(account);
+        bytes32[] memory data = StorageUtils.load(slot, FLOW_STATE_SIZE);
+
+        return
+            FlowState({
+                timestamp: uint256(data[0]),
+                deposit: uint256(data[1]),
+                accrue: uint256(data[2]),
+                rate: uint256(data[3])
+            });
+    }
+
     /**************************************************************************
-     * Helper functions
+     * FlowState util functions
+     *************************************************************************/
+    function _increaseFlowState(bytes32 account) private view {
+        FlowState memory state = _decodeFlowState(account);
+
+        uint256 timestamp = block.timestamp;
+
+        uint256 elapsed = timestamp - state.timestamp;
+        uint256 total = (state.rate * elapsed);
+
+        // uint256 deposit = state.deposit + total;
+        // uint256 accrue = state.accrue;
+        // int256 rate = state.rate + rate;
+    }
+
+    function _decreaseFlowState(bytes32 account) private view {
+        FlowState memory state = _decodeFlowState(account);
+
+        uint256 timestamp = block.timestamp;
+
+        uint256 elapsed = timestamp - state.timestamp;
+        uint256 total = state.rate * elapsed;
+
+        // uint256 deposit = state.deposit + total;
+        // uint256 accrue = state.accrue;
+        // int256 rate = state.rate + rate;
+    }
+
+    function _flowStateSlot(bytes32 account) private pure returns (bytes32) {
+        return keccak256(abi.encode(FLOW_NAMESPACE, account));
+    }
+
+    /**************************************************************************
+     * FlowData util functions
      *************************************************************************/
     function _flowId(
         bytes32 account,
@@ -149,7 +225,7 @@ library FlowUtils {
         }
     }
 
-    function _flowStorage(bytes32 flow) private pure returns (bytes32) {
+    function _flowDataSlot(bytes32 flow) private pure returns (bytes32) {
         return keccak256(abi.encode(FLOW_NAMESPACE, flow));
     }
 
@@ -178,17 +254,17 @@ library FlowUtils {
         return (flow >= min && flow <= max);
     }
 
-    function _isRecipient(
-        bytes32 flow,
-        address account
-    ) private view returns (bool) {
-        bytes32 slot = _flowStorage(flow);
-        bytes32 recipient;
+    // function _isRecipient(
+    //     bytes32 flow,
+    //     address account
+    // ) private view returns (bool) {
+    //     bytes32 slot = _flowDataSlot(flow);
+    //     bytes32 recipient;
 
-        assembly {
-            recipient := sload(add(slot, 1))
-        }
+    //     assembly {
+    //         recipient := sload(add(slot, 1))
+    //     }
 
-        return account == address(uint160(uint256(recipient)));
-    }
+    //     return account == address(uint160(uint256(recipient)));
+    // }
 }

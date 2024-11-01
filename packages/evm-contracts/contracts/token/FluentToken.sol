@@ -100,12 +100,14 @@ contract FluentToken is IFluentToken, UUPSUpgradeable, ContextUpgradeable {
         address sender = _msgSender();
 
         bytes32 account = sender.account();
+        bytes32 target = recipient.account();
+
         uint256 bitmap = _states[account];
 
         (bytes32 id, uint index) = FlowUtils.initiateFlow(
             account,
+            target,
             bitmap,
-            recipient,
             rate
         );
 
@@ -127,9 +129,9 @@ contract FluentToken is IFluentToken, UUPSUpgradeable, ContextUpgradeable {
         _balances[recipient] += total;
         _balances[sender] -= total;
 
-        // Remove flow from register
         _flows.remove(flow);
         _states[account] |= (1 << index);
+        // Remove flow from register
 
         // emit StreamStopped(sender, streamIndex);
     }

@@ -40,7 +40,7 @@ describe("FluentToken", function () {
         tokenFactory = await ethers.getContractFactory("FluentToken", validator);
         tokenSymbol = `${await underlying.symbol()}.fx`;
         tokenName = `Fluent ${await underlying.symbol()}`;
-        
+
         token = await upgrades.deployProxy(tokenFactory, [underlyingAddress, tokenName, tokenSymbol], {
             kind: 'uups',
             redeployImplementation: 'always'
@@ -99,10 +99,22 @@ describe("FluentToken", function () {
             await expect(token.withdraw(amount)).to.be.revertedWithCustomError(token, "ERC20InsufficientBalance").withArgs(accountAddress, balance, amount);
         });
     });
-    
+
     describe("Flows", function () {
-        it("# 3.1 Should allow account initiate flow", async function () {
+        let flow: string;
+        beforeEach(async function () {
+            await underlying.connect(account).approve(token.getAddress(), ETH_1);
             await token.initiateFlow(attackerAddress, ETH_1);
+
+            flow = (await token.mapAccountFlows())[0]
+        });
+
+        it("# 3.1 Should allow account initiate flow", async function () {
+            expect((await token.mapAccountFlows()).length).to.eq(1);
+        });
+        
+        it("# 3.1 Should allow account initiate flow", async function () {
+            console.log(flow)
 
             expect((await token.mapAccountFlows()).length).to.eq(1);
         });
