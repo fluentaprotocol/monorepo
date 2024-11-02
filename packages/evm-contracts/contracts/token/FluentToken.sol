@@ -12,14 +12,14 @@ import {ContextUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/Cont
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {IFluentToken} from "../interfaces/token/IFluentToken.sol";
 
-import {FlowUtils} from "../lib/FlowUtils.sol";
-import {AccountUtils} from "../lib/AccountUtils.sol";
+import {Stream} from "../lib/Stream.sol";
+// import {AccountUtils} from "../lib/AccountUtils.sol";
 
 import "hardhat/console.sol";
 
 contract FluentToken is IFluentToken, UUPSUpgradeable, ContextUpgradeable {
     using EnumerableSet for EnumerableSet.Bytes32Set;
-    using AccountUtils for address;
+    // using AccountUtils for address;
     using SafeCast for uint256;
     using SafeCast for int256;
 
@@ -96,15 +96,15 @@ contract FluentToken is IFluentToken, UUPSUpgradeable, ContextUpgradeable {
     /**************************************************************************
      * Flow functions
      *************************************************************************/
-    function initiateFlow(address recipient, uint256 rate) external {
+    function initiateFlow(address recipient, uint128 rate) external {
         address sender = _msgSender();
 
-        bytes32 account = sender.account();
-        bytes32 target = recipient.account();
+        bytes32 account = Stream.account(sender);
+        bytes32 target = Stream.account(recipient);
 
         uint256 bitmap = _states[account];
 
-        (bytes32 id, uint index) = FlowUtils.initiateFlow(
+        (bytes32 id, uint index) = Stream.initiateFlow(
             account,
             target,
             bitmap,
@@ -120,9 +120,9 @@ contract FluentToken is IFluentToken, UUPSUpgradeable, ContextUpgradeable {
 
     function terminateFlow(bytes32 flow) external {
         address sender = _msgSender();
-        bytes32 account = sender.account();
+        bytes32 account = Stream.account(sender);
 
-        (address recipient, uint index, int256 total) = FlowUtils
+        (address recipient, uint index, int256 total) = Stream
             .terminateFlow(account, flow);
 
         // Update the balances of both the sender and recipient
@@ -137,9 +137,9 @@ contract FluentToken is IFluentToken, UUPSUpgradeable, ContextUpgradeable {
     }
 
     function mapAccountFlows() external view returns (bytes32[] memory) {
-        bytes32 account = _msgSender().account();
+        bytes32 account = Stream.account(_msgSender());
 
-        return FlowUtils.accountFlows(account, _states[account]);
+        return Stream.accountFlows(account, _states[account]);
     }
 
     /**************************************************************************
@@ -161,13 +161,13 @@ contract FluentToken is IFluentToken, UUPSUpgradeable, ContextUpgradeable {
     function timestampBalanceOf() public view /* address user */ {
         // bytes32 account = user.account();
 
-        for (uint i = 0; i < _flows.length(); i++) {
+        // for (uint i = 0; i < _flows.length(); i++) {
             // bytes32 flow = _flows.at(i);
             // if (
-            //     FlowUtils.isSender(flow, account) ||
-            //     FlowUtils.isRecipient(flow, user)
+            //     Stream.isSender(flow, account) ||
+            //     Stream.isRecipient(flow, user)
             // ) {
-            //     FlowUtils.FlowData memory data = FlowUtils.flowData(flow);
+            //     Stream.FlowData memory data = Stream.flowData(flow);
             //     // bytes32 slot = _flowStorage(flow);
             //     // bytes32[] memory data = slot.loadData(FLOW_STORAGE_SIZE);
             //     //  account is sender or recipient
@@ -182,7 +182,7 @@ contract FluentToken is IFluentToken, UUPSUpgradeable, ContextUpgradeable {
             //     // if (data.recipient == account || data.sender == account) {}
             //     // calculate balances
             // }
-        }
+        // }
     }
 
     /**************************************************************************
