@@ -19,5 +19,5 @@ library Encoder {
         assembly {
             value := mload(add(data, 0x20))
         }
-    }    
+    }
 }

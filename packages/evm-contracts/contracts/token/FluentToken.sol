@@ -11,293 +11,47 @@ import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/U
 import {ContextUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ContextUpgradeable.sol";
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {IFluentToken} from "../interfaces/token/IFluentToken.sol";
-
-import {Stream} from "../lib/Stream.sol";
-// import {AccountUtils} from "../lib/AccountUtils.sol";
+import {IFluentHost} from "../interfaces/host/IFluentHost.sol";
+import {FluentHostable} from "../host/FluentHostable.sol";
+import {BaseToken} from "./BaseToken.sol";
 
 import "hardhat/console.sol";
 
-contract FluentToken is IFluentToken, UUPSUpgradeable, ContextUpgradeable {
-    using EnumerableSet for EnumerableSet.Bytes32Set;
-    // using AccountUtils for address;
+contract FluentToken is BaseToken, FluentHostable {
     using SafeCast for uint256;
     using SafeCast for int256;
 
-    IERC20Metadata private _underlying;
-
-    string private _symbol;
-    string private _name;
-
-    uint256 private _totalSupply;
-
-    mapping(bytes32 => uint256) private _states;
-    mapping(address => int256) private _balances;
-    mapping(address => mapping(address => uint256)) private _allowances;
-
-    EnumerableSet.Bytes32Set private _flows;
+    mapping(address => uint256) private _masks;
 
     function initialize(
+        IFluentHost host_,
         IERC20Metadata token_,
         string calldata name_,
         string calldata symbol_
     ) external initializer {
-        _name = name_;
-        _symbol = symbol_;
-        _underlying = token_;
-
-        __Context_init();
         __UUPSUpgradeable_init();
+        __FluentHostable_init(host_);
+        __BaseToken_init(token_, name_, symbol_);
     }
 
-    /**************************************************************************
-     * Token meta functions
-     *************************************************************************/
-    function decimals() public pure returns (uint8) {
-        return 18;
+    function openStream(address account, uint index) external onlyHost {
+        // set bitmap slot at index to 1
     }
 
-    function name() public view returns (string memory) {
-        return _name;
+    function closeStream(address account, uint index) external onlyHost {
+        // set bitmap slot at index to 0
     }
 
-    function symbol() public view returns (string memory) {
-        return _symbol;
+    function accountStreams(address account) external {
+        // call host with local token mask bitmap
     }
 
-    function underlying() external view returns (address) {
-        return address(_underlying);
+    function accountSolvent(address account) external pure returns (bool) {
+        return account != address(0);
     }
 
-    function totalSupply() public view returns (uint256) {
-        return _totalSupply;
-    }
-
-    /**************************************************************************
-     * Token wrapper functions
-     *************************************************************************/
-    function deposit(uint256 value) external {
-        address sender = _msgSender();
-
-        if (sender == address(this)) {
-            revert ERC20InvalidSender(address(this));
-        }
-
-        SafeERC20.safeTransferFrom(_underlying, sender, address(this), value);
-        _mint(sender, value);
-    }
-
-    function withdraw(uint256 value) external {
-        address recipient = _msgSender();
-
-        _burn(recipient, value);
-        SafeERC20.safeTransfer(_underlying, recipient, value);
-    }
-
-    /**************************************************************************
-     * Flow functions
-     *************************************************************************/
-    function initiateFlow(address recipient, uint128 rate) external {
-        address sender = _msgSender();
-
-        bytes32 account = Stream.account(sender);
-        bytes32 target = Stream.account(recipient);
-
-        uint256 bitmap = _states[account];
-
-        (bytes32 id, uint index) = Stream.initiateFlow(
-            account,
-            target,
-            bitmap,
-            rate
-        );
-
-        // Add flow to register
-        _flows.add(id);
-        _states[account] |= (1 << index);
-
-        // emit StreamStarted(sender, recipient, streamIndex, flowRate, totalAmount);
-    }
-
-    function terminateFlow(bytes32 flow) external {
-        address sender = _msgSender();
-        bytes32 account = Stream.account(sender);
-
-        (address recipient, uint index, int256 total) = Stream
-            .terminateFlow(account, flow);
-
-        // Update the balances of both the sender and recipient
-        _balances[recipient] += total;
-        _balances[sender] -= total;
-
-        _flows.remove(flow);
-        _states[account] |= (1 << index);
-        // Remove flow from register
-
-        // emit StreamStopped(sender, streamIndex);
-    }
-
-    function mapAccountFlows() external view returns (bytes32[] memory) {
-        bytes32 account = Stream.account(_msgSender());
-
-        return Stream.accountFlows(account, _states[account]);
-    }
-
-    /**************************************************************************
-     * Balance functions
-     *************************************************************************/
-    function balanceOf(address account) public view returns (uint256) {
-        int256 balance = _balances[account];
-
-        return balance < 0 ? 0 : uint256(balance);
-    }
-
-    function allowance(
-        address owner,
-        address spender
-    ) public view returns (uint256) {
-        return _allowances[owner][spender];
-    }
-
-    function timestampBalanceOf() public view /* address user */ {
-        // bytes32 account = user.account();
-
-        // for (uint i = 0; i < _flows.length(); i++) {
-            // bytes32 flow = _flows.at(i);
-            // if (
-            //     Stream.isSender(flow, account) ||
-            //     Stream.isRecipient(flow, user)
-            // ) {
-            //     Stream.FlowData memory data = Stream.flowData(flow);
-            //     // bytes32 slot = _flowStorage(flow);
-            //     // bytes32[] memory data = slot.loadData(FLOW_STORAGE_SIZE);
-            //     //  account is sender or recipient
-            //     //  load the stream data
-            //     //
-            //     // FlowData({
-            //     //     recipient: address(uint160(uint256(data[0]))),
-            //     //     timestamp: uint256(data[1]),
-            //     //     rate: uint256(data[2])
-            //     // });
-            //     // StreamData memory data = _loadStreamData(_streams.at(i));
-            //     // if (data.recipient == account || data.sender == account) {}
-            //     // calculate balances
-            // }
-        // }
-    }
-
-    /**************************************************************************
-     * Token transfer / approve functions
-     *************************************************************************/
-    function approve(address spender, uint256 value) public returns (bool) {
-        address owner = _msgSender();
-        _approve(owner, spender, value);
-        return true;
-    }
-
-    function transfer(address to, uint256 value) external returns (bool) {
-        _transfer(_msgSender(), to, value.toInt256());
-
-        return true;
-    }
-
-    function transferFrom(
-        address from,
-        address to,
-        uint256 value
-    ) external returns (bool) {
-        _spendAllowance(from, _msgSender(), value);
-        _transfer(from, to, value.toInt256());
-
-        return true;
-    }
-
-    /**************************************************************************
-     * Token helper functions
-     *************************************************************************/
-    function _mint(address account, uint256 value) internal {
-        if (account == address(0)) {
-            revert ERC20InvalidReceiver(address(0));
-        }
-
-        _balances[account] = _balances[account] + value.toInt256();
-        _totalSupply = _totalSupply + value;
-    }
-
-    function _burn(address account, uint256 value) internal {
-        if (account == address(0)) {
-            revert ERC20InvalidSender(address(0));
-        }
-
-        uint256 balance = balanceOf(account);
-
-        if (balance < value) {
-            revert ERC20InsufficientBalance(account, balance, value);
-        }
-
-        _balances[account] = _balances[account] - value.toInt256();
-        _totalSupply = _totalSupply - value;
-    }
-
-    function _transfer(
-        address from,
-        address to,
-        int256 amount
-    ) internal virtual {
-        if (from == address(0)) {
-            revert ERC20InvalidSender(address(0));
-        }
-
-        if (to == address(0)) {
-            revert ERC20InvalidReceiver(address(0));
-        }
-
-        _balances[from] = _balances[from] - amount;
-        _balances[to] = _balances[to] + amount;
-    }
-
-    function _approve(address owner, address spender, uint256 value) internal {
-        _approve(owner, spender, value, true);
-    }
-
-    function _approve(
-        address owner,
-        address spender,
-        uint256 value,
-        bool emitEvent
-    ) internal {
-        if (owner == address(0)) {
-            revert ERC20InvalidApprover(address(0));
-        }
-
-        if (spender == address(0)) {
-            revert ERC20InvalidSpender(address(0));
-        }
-
-        _allowances[owner][spender] = value;
-        if (emitEvent) {
-            emit Approval(owner, spender, value);
-        }
-    }
-
-    function _spendAllowance(
-        address owner,
-        address spender,
-        uint256 value
-    ) internal {
-        uint256 currentAllowance = allowance(owner, spender);
-
-        if (currentAllowance != type(uint256).max) {
-            if (currentAllowance < value) {
-                revert ERC20InsufficientAllowance(
-                    spender,
-                    currentAllowance,
-                    value
-                );
-            }
-            unchecked {
-                _approve(owner, spender, currentAllowance - value, false);
-            }
-        }
+    function accountCritical(address account) external pure returns (bool) {
+        return account != address(0);
     }
 
     /**************************************************************************

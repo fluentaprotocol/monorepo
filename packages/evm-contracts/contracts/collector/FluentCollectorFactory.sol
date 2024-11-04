@@ -1,77 +1,109 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.27;
 
-import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
-import {UUPSProxy} from "../upgradeability/UUPSProxy.sol";
-import {Context} from "@openzeppelin/contracts/utils/Context.sol";
 import {Bitmap} from "../lib/Bitmap.sol";
+import {Account} from "../lib/Account.sol";
+import {Storage} from "../lib/Storage.sol";
 
+import {UUPSProxy} from "../upgradeability/UUPSProxy.sol";
+import {FluentHostable} from "../host/FluentHostable.sol";
+import {IFluentHost} from "../interfaces/host/IFluentHost.sol";
 import {IFluentCollector} from "../interfaces/collector/IFluentCollector.sol";
+import {IFluentCollectorFactory} from "../interfaces/collector/IFluentCollectorFactory.sol";
+import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
+import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
-contract FluentTokenFactory is Context {
+contract FluentCollectorFactory is
+    IFluentCollectorFactory,
+    FluentHostable,
+    UUPSUpgradeable
+{
+    using EnumerableSet for EnumerableSet.AddressSet;
+    using Storage for bytes32;
+    using Account for address;
     using Bitmap for uint256;
 
-    IFluentCollector public immutable _IMPLEMENTAION;
+    address public implementation;
 
-    mapping(bytes32 => address) private _collectors;
-    mapping(address => uint256) private _collectorStates;
+    EnumerableSet.AddressSet private _collectors;
 
-    constructor(IFluentCollector implementation) {
-        _IMPLEMENTAION = IFluentCollector(implementation);
+    mapping(bytes32 slot => address collector) private _slots;
+    mapping(address account => uint256 bitmap) private _accounts;
+
+    function initialize(
+        IFluentHost host,
+        address implemenation_
+    ) external initializer onlyProxy {
+        implementation = implemenation_;
+
+        __UUPSUpgradeable_init();
+        __FluentHostable_init(host);
     }
 
-    function createCollector() external returns (IFluentCollector) {
-        uint256 bitmap = _collectorStates[_msgSender()];
-        (bool available, uint index) = bitmap.nextAvailableSlot();
+    /**************************************************************************
+     * Modifiers
+     *************************************************************************/
+    modifier onlyCollector() {
+        address sender = _msgSender();
 
-        if (!available) {
-            revert("all collector slots for this account are taken");
+        if (!_collectors.contains(sender)) {
+            revert UnauthorizedCollector(sender);
         }
 
-        bytes32 id = collectorId(_msgSender(), index);
+        _;
+    }
 
-        UUPSProxy proxy = new UUPSProxy{salt: id}();
+    /**************************************************************************
+     * Core functions
+     *************************************************************************/
+    function isCollector(
+        address collector
+    ) external view onlyProxy returns (bool) {
+        return _collectors.contains(collector);
+    }
+
+    function openCollector() external onlyProxy {
+        address account = _msgSender();
+
+        (bool available, uint index) = _accounts[account].nextUnset();
+
+        if (!available) {
+            revert("User max collectors reached");
+        }
+
+        UUPSProxy proxy = new UUPSProxy();
         address proxyAddress = address(proxy);
 
-        proxy.initializeProxy(address(_IMPLEMENTAION));
+        proxy.initializeProxy(implementation);
 
-        IFluentCollector collector =  IFluentCollector(proxyAddress);
+        bytes32 slot = account.slot(index);
+        IFluentCollector collector = IFluentCollector(proxyAddress);
 
-        collector.initialize();
+        collector.initialize(host, slot);
 
-        return collector;
+        _collectors.add(proxyAddress);
+        _accounts[account] = Bitmap.set(_accounts[account], index);
+
+        _slots[slot] = proxyAddress;
     }
 
-    function collectorId(
-        address owner,
-        uint index
-    ) public pure returns (bytes32) {
-        return keccak256(abi.encode(owner, index));
+    function closeCollector(IFluentCollector collector) external onlyProxy {
+        address account = _msgSender();
+        bytes32 slot = collector.slot();
+        uint256 index = account.slotIndex(slot);
+
+        collector.terminate();
+
+        _collectors.remove(address(collector));
+        _accounts[account] = Bitmap.unset(_accounts[account], index);
+
+        delete _slots[slot];
     }
 
-    // function createToken(IERC20Metadata underlying) external returns (IFluentToken) {
-    //     address underlyingAddress = address(underlying);
-
-    //     require(
-    //         _proxies[underlyingAddress] == address(0),
-    //         "Token already exists"
-    //     );
-
-    //     bytes32 salt = keccak256(abi.encode(underlyingAddress));
-
-    //     UUPSProxy proxy = new UUPSProxy{salt: salt}();
-    //     address proxyAddress = address(proxy);
-
-    //     _proxies[underlyingAddress] = proxyAddress;
-    //     proxy.initializeProxy(address(_TOKEN_IMPLEMENTAION));
-
-    //     IFluentToken token = IFluentToken(proxyAddress);
-
-    //     string memory name = string.concat("Fluent ", underlying.name());
-    //     string memory symbol = string.concat(underlying.symbol(), '.fl');
-
-    //     token.initialize(underlying, name, symbol);
-
-    //     return token;
-    // }
+    /**************************************************************************
+     * UUPS Upgrade implementation
+     *************************************************************************/
+    function _authorizeUpgrade(
+        address newImplementation
+    ) internal virtual override {}
 }
