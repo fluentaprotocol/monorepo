@@ -21,14 +21,7 @@ contract FluentHost is IFluentHost, UUPSUpgradeable, ContextUpgradeable {
     using EnumerableSet for EnumerableSet.Bytes32Set;
     using EnumerableSet for EnumerableSet.AddressSet;
 
-    // IFluentTokenFactory private immutable _tokenFactory;
-    
     IFluentCollectorFactory public collectorFactory;
-
-    // IFluentCollector private _collectorImplementation;
-
-    // streams bytes32[]
-    // collectors address[]
 
     // Collector variables
     // Bitmaps.BitMap private _streamStates;
@@ -115,12 +108,18 @@ contract FluentHost is IFluentHost, UUPSUpgradeable, ContextUpgradeable {
     /**************************************************************************
      * Stream functions
      *************************************************************************/
-    function openStream(address account) external returns (bytes32) onlyCollector onlyProxy {
+    function openStream(
+        address account
+    ) external onlyCollector onlyProxy returns (bytes32) {
         address collector = _msgSender();
+
+        revert("FluentHost.openStream() not implemented");
     }
-    
+
     function closeStream(address account) external onlyCollector onlyProxy {
         address collector = _msgSender();
+
+        revert("FluentHost.closeStream() not implemented");
     }
 
     // collector
@@ -211,17 +210,12 @@ contract FluentHost is IFluentHost, UUPSUpgradeable, ContextUpgradeable {
     //     return keccak256(abi.encode("fluenta.stream", sender, recipient));
     // }
 
-    // function collectorFactory()
-    //     external
-    //     view
-    //     override
-    //     returns (IFluentCollectorFactory)
-    // {
-    //     return _collectorFactory;
-    // }
-
     /**************************************************************************
      * UUPS Upgrade implementation
      *************************************************************************/
-    function _authorizeUpgrade(address newImplementation) internal override {}
+    // function _authorizeUpgrade(address newImplementation) internal override {}
+
+    function _authorizeUpgrade(
+        address newImplementation
+    ) internal virtual override {}
 }

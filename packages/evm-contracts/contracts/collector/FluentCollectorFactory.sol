@@ -41,19 +41,6 @@ contract FluentCollectorFactory is
     }
 
     /**************************************************************************
-     * Modifiers
-     *************************************************************************/
-    modifier onlyCollector() {
-        address sender = _msgSender();
-
-        if (!_collectors.contains(sender)) {
-            revert UnauthorizedCollector(sender);
-        }
-
-        _;
-    }
-
-    /**************************************************************************
      * Core functions
      *************************************************************************/
     function isCollector(

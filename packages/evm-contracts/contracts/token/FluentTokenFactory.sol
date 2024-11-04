@@ -37,7 +37,7 @@ contract FluentTokenFactory {
         string memory name = string.concat("Fluent ", underlying.name());
         string memory symbol = string.concat(underlying.symbol(), '.fl');
 
-        token.initialize(underlying, name, symbol);
+        // token.initialize(underlying, name, symbol);
 
         return token;
     }

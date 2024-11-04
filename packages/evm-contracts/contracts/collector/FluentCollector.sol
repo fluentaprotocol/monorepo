@@ -40,7 +40,7 @@ contract FluentCollector is IFluentCollector, UUPSUpgradeable, FluentHostable {
     modifier onlyFactory() {
         address sender = _msgSender();
 
-        if (sender != address(host.factory())) {
+        if (sender != address(host.collectorFactory())) {
             revert UnauthorizedFactory(sender);
         }
 
@@ -51,7 +51,7 @@ contract FluentCollector is IFluentCollector, UUPSUpgradeable, FluentHostable {
      * Metadata functions
      *************************************************************************/
     function factory() external view returns (IFluentCollectorFactory) {
-        return host.factory();
+        return host.collectorFactory();
     }
 
     /**************************************************************************
@@ -72,6 +72,8 @@ contract FluentCollector is IFluentCollector, UUPSUpgradeable, FluentHostable {
         bytes32 stream = _streams[account];
 
         host.closeStream(account);
+
+        delete _streams[account];
 
         revert("FluentCollector.closeStream() not implemented");
     }

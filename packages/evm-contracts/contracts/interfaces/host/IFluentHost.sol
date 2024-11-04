@@ -7,9 +7,9 @@ interface IFluentHost {
     error UnauthorizedCollector(address actor);
     error UnauthorizedFactory(address actor);
 
-    function factory() external view returns (IFluentCollectorFactory);
+    function collectorFactory() external view returns (IFluentCollectorFactory);
 
-    function openStream(address account) external;
+    function openStream(address account) external returns (bytes32);
 
     function closeStream(address account) external;
 }
