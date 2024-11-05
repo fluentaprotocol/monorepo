@@ -7,8 +7,6 @@ import {IFluentCollectorFactory} from "./IFluentCollectorFactory.sol";
 interface IFluentCollector {
     error UnauthorizedFactory(address actor);
 
-    function initialize(IFluentHost host, bytes32 slot) external;
-
     function slot() external view returns (bytes32);
 
     function factory() external view returns (IFluentCollectorFactory);

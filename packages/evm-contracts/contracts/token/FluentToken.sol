@@ -13,22 +13,23 @@ import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Ini
 import {IFluentToken} from "../interfaces/token/IFluentToken.sol";
 import {IFluentHost} from "../interfaces/host/IFluentHost.sol";
 import {FluentHostable} from "../host/FluentHostable.sol";
-import {Bitmap} from "../lib/Bitmap.sol";
+import {Bitmap, BitmapUtils} from "../lib/Bitmap.sol";
 import {Account} from "../lib/Account.sol";
 
 import "hardhat/console.sol";
 
 contract FluentToken is IFluentToken, FluentHostable, UUPSUpgradeable {
     using SafeERC20 for IERC20Metadata;
+    using BitmapUtils for Bitmap;
 
     string public symbol;
     string public name;
 
-    uint8 public decimals;
     uint256 public totalSupply;
 
     IERC20Metadata public underlying;
 
+    mapping(address => Bitmap) private _masks;
     mapping(address => uint256) private _balances;
     mapping(address => mapping(address => uint256)) private _allowances;
 
@@ -42,22 +43,24 @@ contract FluentToken is IFluentToken, FluentHostable, UUPSUpgradeable {
         symbol = symbol_;
         underlying = token_;
 
-        decimals = token_.decimals();
-
         __UUPSUpgradeable_init();
         __FluentHostable_init(host_);
+    }
+
+    function decimals() public view override returns (uint8) {
+        return underlying.decimals();
     }
 
     /**************************************************************************
      * Stream functions
      *************************************************************************/
-    // function updateMask(
-    //     address account,
-    //     uint index,
-    //     bool active
-    // ) external onlyHost {
-    //     _masks[account] = _masks[account].setTo(index, active);
-    // }
+    function updateMask(
+        address account,
+        uint index,
+        bool active
+    ) external onlyHost {
+        _masks[account].setTo(index, active);
+    }
 
     // function maskOf(address acount) external {
 

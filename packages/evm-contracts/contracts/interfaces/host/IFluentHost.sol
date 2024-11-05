@@ -13,6 +13,5 @@ interface IFluentHost {
     function collectorFactory() external view returns (IFluentCollectorFactory);
 
     function openStream(address account, IFluentToken token) external returns (bytes32);
-
-    function closeStream(address account, bytes32 stream) external;
+    function closeStream(bytes32 stream) external;
 }

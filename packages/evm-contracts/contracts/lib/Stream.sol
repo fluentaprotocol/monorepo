@@ -3,13 +3,64 @@ pragma solidity ^0.8.27;
 
 // import {Encoder} from "./Encoder.sol";
 // import {Bitmap} from "./Bitmap.sol";
-// import {Storage} from "./Storage.sol";
+import {Storage} from "./Storage.sol";
 // import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
+import {IFluentToken} from "../interfaces/token/IFluentToken.sol";
+import {IFluentCollector} from "../interfaces/collector/IFluentCollector.sol";
 
 // import "hardhat/console.sol";
 
 // // 1. The higher the rate in the flow state, the more money is going out
 // // 2. If the flow state rate is below 0, there is more money coming in then going out.
+
+library Stream {
+    using Storage for bytes32;
+
+    uint256 private constant STREAM_DATA_SLOT_COUNT = 2;
+
+    function account(bytes32 stream) internal view returns (address) {
+        return stream.loadAddress();
+    }
+
+    function collector(bytes32 stream) internal view returns (address) {
+        assembly {
+            stream := add(stream, 1)
+        }
+
+        return stream.loadAddress();
+    }
+
+    function token(bytes32 stream) internal view returns (IFluentToken) {
+        assembly {
+            stream := add(stream, 2)
+        }
+
+        return IFluentToken(stream.loadAddress());
+    }
+
+    function data(
+        bytes32 stream
+    )
+        internal
+        view
+        returns (address account_, address collector_, IFluentToken token_)
+    {
+        token_ = token(stream);
+        account_ = account(stream);
+        collector_ = collector(stream);
+    }
+
+    function store(
+        bytes32 stream,
+        address account_,
+        address collector_,
+        IFluentToken token_
+    ) internal {}
+
+    function clear(bytes32 stream) internal {
+        
+    }
+}
 
 // library Stream {
 //     using Bitmap for uint256;

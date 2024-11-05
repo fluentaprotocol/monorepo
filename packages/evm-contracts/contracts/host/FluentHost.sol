@@ -17,18 +17,19 @@ import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/U
 import {IFluentHost} from "../interfaces/host/IFluentHost.sol";
 import {Bitmap, BitmapUtils} from "../lib/Bitmap.sol";
 import {Storage} from "../lib/Storage.sol";
+import {Stream} from "../lib/Stream.sol";
 import {Account} from "../lib/Account.sol";
 
 import "hardhat/console.sol";
 
 contract FluentHost is IFluentHost, UUPSUpgradeable, ContextUpgradeable {
     using BitmapUtils for Bitmap;
-    using Storage for bytes32;
+    // using Storage for bytes32;
     using Account for address;
+    using Stream for bytes32;
+
     using EnumerableSet for EnumerableSet.Bytes32Set;
     using EnumerableSet for EnumerableSet.AddressSet;
-
-    uint256 private constant STREAM_DATA_SLOT_COUNT = 2;
 
     IFluentTokenFactory public tokenFactory;
     IFluentCollectorFactory public collectorFactory;
@@ -37,8 +38,7 @@ contract FluentHost is IFluentHost, UUPSUpgradeable, ContextUpgradeable {
     // Bitmaps.BitMap private _streamStates;
     EnumerableSet.Bytes32Set private _streams; // get all collectors
 
-    mapping(address => Bitmap) private _accountMasks;
-    mapping(address => mapping(IFluentToken => Bitmap)) private _tokenMasks;
+    mapping(address => Bitmap) private _accounts;
 
     // Bitmaps.BitMap private _collectorIndicies;
     // EnumerableSet.AddressSet private _collectors; // get all collectors
@@ -117,58 +117,89 @@ contract FluentHost is IFluentHost, UUPSUpgradeable, ContextUpgradeable {
     ) external onlyCollector onlyProxy returns (bytes32) {
         address collector = _msgSender();
 
-        (bool available, uint index) = _accountMasks[account].nextUnset();
+        (bool available, uint index) = _accounts[account].nextUnset();
 
         if (!available) {
             revert("User max streams overflow");
         }
 
-        bytes32 slot = account.slot(index);
-        bytes32[] memory data = _encodeStreamData(collector, token);
+        bytes32 stream = account.slot(index);
 
-        slot.store(data);
+        stream.store(account, collector, token);
+        token.updateMask(account, index, true);
 
-        _accountMasks[account].set(index);
-        _tokenMasks[account][token].set(index);
+        _accounts[account].set(index);
 
-        revert("FluentHost.openStream() not implemented");
+        return stream;
     }
 
-    function closeStream(
-        address account,
-        bytes32 stream
-    ) external onlyCollector onlyProxy {
+    // function closeStream(
+    //     address account,
+    //     bytes32 stream
+    // ) external onlyCollector onlyProxy {
+    //     if (!_streams.contains(stream)) {
+    //         revert("InvalidStream");
+    //     }
+    //     // Reverts if account is not stream owner
+    //     uint index = account.slotIndex(stream);
+
+    //     bytes32[] memory data = stream.load(STREAM_DATA_SLOT_COUNT);
+    //     (, IFluentCollector collector, IFluentToken token) = _decodeStreamData(
+    //         data
+    //     );
+
+    //     if (collector != _msgSender()) {
+    //         revert("UnauthorizedCollector");
+    //     }
+
+    //     // Update all the balance information
+
+    //     _accounts[account].unset(index);
+
+    //     token.updateMask(account, index, false);
+    //     stream.clear(STREAM_DATA_SLOT_COUNT);
+    // }
+
+    function closeStream(bytes32 stream) external onlyCollector {
+        _closeStream(stream);
+    }
+
+    function terminateStream(bytes32 stream) external {
+        _closeStream(stream);
+    }
+
+    function _streamSolvent(bytes32 stream) private {}
+
+    function _closeStream(bytes32 stream) private {
         if (!_streams.contains(stream)) {
             revert("InvalidStream");
         }
-        // Reverts if account is not stream owner
+
+        (address account, , IFluentToken token) = stream.data();
+
         uint index = account.slotIndex(stream);
 
-        bytes32[] memory data = stream.load(STREAM_DATA_SLOT_COUNT);
-        (address collector, IFluentToken token) = _decodeStreamData(data);
+        // update the balances
 
-        if (collector != _msgSender()) {
-            revert("UnauthorizedCollector");
-        }
+        _accounts[account].unset(index);
 
-        // Update all the balance information
-
-        _accountMasks[account].unset(index);
-        _tokenMasks[account][token].unset(index);
-
-        stream.clear(STREAM_DATA_SLOT_COUNT);
-
-        revert("FluentHost.closeStream() not implemented");
+        token.updateMask(account, index, false);
+        stream.clear();
     }
 
     function _encodeStreamData(
+        address account,
         address collector,
         IFluentToken token
     ) private returns (bytes32[] memory) {}
 
     function _decodeStreamData(
         bytes32[] memory data
-    ) private pure returns (address collector, IFluentToken token) {}
+    )
+        private
+        pure
+        returns (address sender, IFluentCollector collector, IFluentToken token)
+    {}
 
     // collector
 

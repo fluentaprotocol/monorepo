@@ -9,6 +9,7 @@ import {UUPSProxy} from "../upgradeability/UUPSProxy.sol";
 import {FluentHostable} from "../host/FluentHostable.sol";
 import {IFluentHost} from "../interfaces/host/IFluentHost.sol";
 import {IFluentCollector} from "../interfaces/collector/IFluentCollector.sol";
+import {FluentCollector} from "./FluentCollector.sol";
 import {IFluentCollectorFactory} from "../interfaces/collector/IFluentCollectorFactory.sol";
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
@@ -64,7 +65,7 @@ contract FluentCollectorFactory is
         proxy.initializeProxy(address(implementation));
 
         bytes32 slot = account.slot(index);
-        IFluentCollector collector = IFluentCollector(proxyAddress);
+        FluentCollector collector = FluentCollector(proxyAddress);
 
         collector.initialize(host, slot);
 

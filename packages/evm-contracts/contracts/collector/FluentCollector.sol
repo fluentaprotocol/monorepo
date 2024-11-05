@@ -60,9 +60,11 @@ contract FluentCollector is IFluentCollector, UUPSUpgradeable, FluentHostable {
     function openStream(IFluentToken token) external onlyProxy {
         address account = _msgSender();
 
-        _streams[account] = host.openStream(account, token);
+        if (_streams[account] != bytes32(0)) {
+            revert("User already subscribed");
+        }
 
-        revert("FluentCollector.openStream() not implemented");
+        _streams[account] = host.openStream(account, token);
     }
 
     /// @dev close the exisiting stream with the collector if the accoutn has one
@@ -70,11 +72,13 @@ contract FluentCollector is IFluentCollector, UUPSUpgradeable, FluentHostable {
         address account = _msgSender();
         bytes32 stream = _streams[account];
 
-        host.closeStream(account, stream);
+        if (stream == bytes32(0)) {
+            revert("User not subscribed");
+        }
+
+        host.closeStream(stream);
 
         delete _streams[account];
-
-        revert("FluentCollector.closeStream() not implemented");
     }
 
     /// @dev terminate collector and mark as destroyed
