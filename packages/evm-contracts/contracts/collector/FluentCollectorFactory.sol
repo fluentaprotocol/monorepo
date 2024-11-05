@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.27;
 
-import {Bitmap} from "../lib/Bitmap.sol";
+import {Bitmap, BitmapUtils} from "../lib/Bitmap.sol";
 import {Account} from "../lib/Account.sol";
 import {Storage} from "../lib/Storage.sol";
 
@@ -21,14 +21,14 @@ contract FluentCollectorFactory is
     using EnumerableSet for EnumerableSet.AddressSet;
     using Storage for bytes32;
     using Account for address;
-    using Bitmap for uint256;
+    using BitmapUtils for Bitmap;
 
     IFluentCollector public implementation;
 
     EnumerableSet.AddressSet private _collectors;
 
     mapping(bytes32 slot => address collector) private _slots;
-    mapping(address account => uint256 bitmap) private _accounts;
+    mapping(address account => Bitmap) private _accounts;
 
     function initialize(
         IFluentHost host,
@@ -69,7 +69,7 @@ contract FluentCollectorFactory is
         collector.initialize(host, slot);
 
         _collectors.add(proxyAddress);
-        _accounts[account] = Bitmap.set(_accounts[account], index);
+        _accounts[account].set(index);
 
         _slots[slot] = proxyAddress;
     }
@@ -82,7 +82,7 @@ contract FluentCollectorFactory is
         collector.terminate();
 
         _collectors.remove(address(collector));
-        _accounts[account] = Bitmap.unset(_accounts[account], index);
+        _accounts[account].unset(index);
 
         delete _slots[slot];
     }

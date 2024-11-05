@@ -8,7 +8,7 @@ library Account {
     /**************************************************************************
      * External functions
      *************************************************************************/
-    function account(address owner) internal pure returns (bytes32) {
+    function id(address owner) internal pure returns (bytes32) {
         return keccak256(abi.encode(ACCOUNT_NAMESPACE, owner));
     }
 
@@ -16,21 +16,21 @@ library Account {
         address account_,
         uint index
     ) internal pure returns (bytes32) {
-        return _slot(account(account_), index);
+        return _slot(id(account_), index);
     }
 
     function slotIndex(
         address account_,
         bytes32 slot_
     ) internal pure returns (uint) {
-        return _slotIndex(account(account_), slot_);
+        return _slotIndex(id(account_), slot_);
     }
 
     function isOwner(
         address account_,
         bytes32 slot_
     ) internal pure returns (bool) {
-        return _isOwner(account(account_), slot_);
+        return _isOwner(id(account_), slot_);
     }
 
     /**************************************************************************

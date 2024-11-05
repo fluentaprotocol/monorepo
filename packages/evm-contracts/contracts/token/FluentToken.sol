@@ -13,13 +13,13 @@ import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Ini
 import {IFluentToken} from "../interfaces/token/IFluentToken.sol";
 import {IFluentHost} from "../interfaces/host/IFluentHost.sol";
 import {FluentHostable} from "../host/FluentHostable.sol";
+import {Bitmap} from "../lib/Bitmap.sol";
+import {Account} from "../lib/Account.sol";
 
 import "hardhat/console.sol";
 
 contract FluentToken is IFluentToken, FluentHostable, UUPSUpgradeable {
     using SafeERC20 for IERC20Metadata;
-
-    IERC20Metadata public underlying;
 
     string public symbol;
     string public name;
@@ -27,7 +27,8 @@ contract FluentToken is IFluentToken, FluentHostable, UUPSUpgradeable {
     uint8 public decimals;
     uint256 public totalSupply;
 
-    mapping(address => uint256) private _masks;
+    IERC20Metadata public underlying;
+
     mapping(address => uint256) private _balances;
     mapping(address => mapping(address => uint256)) private _allowances;
 
@@ -50,6 +51,18 @@ contract FluentToken is IFluentToken, FluentHostable, UUPSUpgradeable {
     /**************************************************************************
      * Stream functions
      *************************************************************************/
+    // function updateMask(
+    //     address account,
+    //     uint index,
+    //     bool active
+    // ) external onlyHost {
+    //     _masks[account] = _masks[account].setTo(index, active);
+    // }
+
+    // function maskOf(address acount) external {
+
+    // }
+
     // function openStream(address account, uint index) external onlyHost {
     //     // set bitmap slot at index to 1
     // }

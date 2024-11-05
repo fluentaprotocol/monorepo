@@ -11,22 +11,34 @@ import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Ini
 import {IFluentCollector} from "../interfaces/collector/IFluentCollector.sol";
 import {IFluentCollectorFactory} from "../interfaces/collector/IFluentCollectorFactory.sol";
 import {IFluentToken} from "../interfaces/token/IFluentToken.sol";
-
+import {IFluentTokenFactory} from "../interfaces/token/IFluentTokenFactory.sol";
 import {ContextUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ContextUpgradeable.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {IFluentHost} from "../interfaces/host/IFluentHost.sol";
+import {Bitmap, BitmapUtils} from "../lib/Bitmap.sol";
+import {Storage} from "../lib/Storage.sol";
+import {Account} from "../lib/Account.sol";
 
 import "hardhat/console.sol";
 
 contract FluentHost is IFluentHost, UUPSUpgradeable, ContextUpgradeable {
+    using BitmapUtils for Bitmap;
+    using Storage for bytes32;
+    using Account for address;
     using EnumerableSet for EnumerableSet.Bytes32Set;
     using EnumerableSet for EnumerableSet.AddressSet;
 
+    uint256 private constant STREAM_DATA_SLOT_COUNT = 2;
+
+    IFluentTokenFactory public tokenFactory;
     IFluentCollectorFactory public collectorFactory;
 
     // Collector variables
     // Bitmaps.BitMap private _streamStates;
     EnumerableSet.Bytes32Set private _streams; // get all collectors
+
+    mapping(address => Bitmap) private _accountMasks;
+    mapping(address => mapping(IFluentToken => Bitmap)) private _tokenMasks;
 
     // Bitmaps.BitMap private _collectorIndicies;
     // EnumerableSet.AddressSet private _collectors; // get all collectors
@@ -96,16 +108,6 @@ contract FluentHost is IFluentHost, UUPSUpgradeable, ContextUpgradeable {
         _;
     }
 
-    modifier onlyFactory() {
-        address sender = _msgSender();
-
-        if (address(collectorFactory) != sender) {
-            revert UnauthorizedFactory(sender);
-        }
-
-        _;
-    }
-
     /**************************************************************************
      * Stream functions
      *************************************************************************/
@@ -115,16 +117,58 @@ contract FluentHost is IFluentHost, UUPSUpgradeable, ContextUpgradeable {
     ) external onlyCollector onlyProxy returns (bytes32) {
         address collector = _msgSender();
 
-        // generate stream id based on token
+        (bool available, uint index) = _accountMasks[account].nextUnset();
+
+        if (!available) {
+            revert("User max streams overflow");
+        }
+
+        bytes32 slot = account.slot(index);
+        bytes32[] memory data = _encodeStreamData(collector, token);
+
+        slot.store(data);
+
+        _accountMasks[account].set(index);
+        _tokenMasks[account][token].set(index);
 
         revert("FluentHost.openStream() not implemented");
     }
 
-    function closeStream(address account) external view onlyCollector onlyProxy {
-        address collector = _msgSender();
+    function closeStream(
+        address account,
+        bytes32 stream
+    ) external onlyCollector onlyProxy {
+        if (!_streams.contains(stream)) {
+            revert("InvalidStream");
+        }
+        // Reverts if account is not stream owner
+        uint index = account.slotIndex(stream);
+
+        bytes32[] memory data = stream.load(STREAM_DATA_SLOT_COUNT);
+        (address collector, IFluentToken token) = _decodeStreamData(data);
+
+        if (collector != _msgSender()) {
+            revert("UnauthorizedCollector");
+        }
+
+        // Update all the balance information
+
+        _accountMasks[account].unset(index);
+        _tokenMasks[account][token].unset(index);
+
+        stream.clear(STREAM_DATA_SLOT_COUNT);
 
         revert("FluentHost.closeStream() not implemented");
     }
+
+    function _encodeStreamData(
+        address collector,
+        IFluentToken token
+    ) private returns (bytes32[] memory) {}
+
+    function _decodeStreamData(
+        bytes32[] memory data
+    ) private pure returns (address collector, IFluentToken token) {}
 
     // collector
 
@@ -222,6 +266,4 @@ contract FluentHost is IFluentHost, UUPSUpgradeable, ContextUpgradeable {
     function _authorizeUpgrade(
         address newImplementation
     ) internal virtual override {}
-
-    function openStream(address account) external override returns (bytes32) {}
 }

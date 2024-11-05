@@ -8,4 +8,6 @@ interface IFluentTokenFactory {
     function createToken(
         IERC20Metadata underlying
     ) external returns (IFluentToken);
+
+    function implementation() external view returns (IFluentToken);
 }

@@ -3,14 +3,16 @@ pragma solidity ^0.8.27;
 
 import {IFluentCollectorFactory} from "../collector/IFluentCollectorFactory.sol";
 import {IFluentToken} from "../token/IFluentToken.sol";
+import {IFluentTokenFactory} from "../token/IFluentTokenFactory.sol";
 
 interface IFluentHost {
     error UnauthorizedCollector(address actor);
-    error UnauthorizedFactory(address actor);
+    // error UnauthorizedCollectorFactory(address actor);
 
+    function tokenFactory() external view returns (IFluentTokenFactory);
     function collectorFactory() external view returns (IFluentCollectorFactory);
 
-    function openStream(address account) external returns (bytes32);
+    function openStream(address account, IFluentToken token) external returns (bytes32);
 
-    function closeStream(address account) external;
+    function closeStream(address account, bytes32 stream) external;
 }

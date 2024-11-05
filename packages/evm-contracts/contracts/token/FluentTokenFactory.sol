@@ -8,20 +8,22 @@ import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IER
 
 import {UUPSProxy} from "../upgradeability/UUPSProxy.sol";
 import {FluentHostable} from "../host/FluentHostable.sol";
+import {FluentToken} from "../token/FluentToken.sol";
 import {IFluentHost} from "../interfaces/host/IFluentHost.sol";
 import {IFluentToken} from "../interfaces/token/IFluentToken.sol";
 import {IFluentCollector} from "../interfaces/collector/IFluentCollector.sol";
 import {IFluentCollectorFactory} from "../interfaces/collector/IFluentCollectorFactory.sol";
+import {IFluentTokenFactory} from "../interfaces/token/IFluentTokenFactory.sol";
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
-contract FluentTokenFactory is FluentHostable, UUPSUpgradeable {
+contract FluentTokenFactory is IFluentTokenFactory, FluentHostable, UUPSUpgradeable {
     using EnumerableSet for EnumerableSet.AddressSet;
 
     IFluentToken public implementation;
 
     EnumerableSet.AddressSet private _tokens;
-    mapping(address => address) private _wrappers;
+    mapping(address => address) private _wrapped;
 
     function initialize(
         IFluentHost host,
@@ -42,7 +44,7 @@ contract FluentTokenFactory is FluentHostable, UUPSUpgradeable {
         address underlyingAddress = address(underlying);
 
         require(
-            address(_wrappers[underlyingAddress]) == address(0),
+            address(_wrapped[underlyingAddress]) == address(0),
             "Token already exists"
         );
 
@@ -51,7 +53,7 @@ contract FluentTokenFactory is FluentHostable, UUPSUpgradeable {
         UUPSProxy proxy = new UUPSProxy{salt: salt}();
 
         address proxyAddress = address(proxy);
-        IFluentToken token = IFluentToken(proxyAddress);
+        FluentToken token = FluentToken(proxyAddress);
 
         proxy.initializeProxy(address(implementation));
 
@@ -61,7 +63,7 @@ contract FluentTokenFactory is FluentHostable, UUPSUpgradeable {
         token.initialize(host, underlying, name, symbol);
 
         _tokens.add(proxyAddress);
-        _wrappers[underlyingAddress] = proxyAddress;
+        _wrapped[underlyingAddress] = proxyAddress;
 
         return token;
     }

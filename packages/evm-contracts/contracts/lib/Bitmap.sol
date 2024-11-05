@@ -3,27 +3,35 @@ pragma solidity ^0.8.27;
 
 import "hardhat/console.sol";
 
-library Bitmap {
+struct Bitmap {
+    uint map;
+}
+
+library BitmapUtils {
     uint internal constant MAX_INDEX = 256;
 
     error IndexOutOfRange();
 
-    function get(uint256 bitmap, uint256 index) internal pure returns (bool) {
+    function get(
+        Bitmap storage bitmap,
+        uint256 index
+    ) internal view returns (bool) {
         _validateIndex(index);
 
-        return bitmap & _mask(index) != 0;
+        return bitmap.map & _mask(index) != 0;
     }
 
     function allSet(
-        uint256 bitmap
-    ) internal pure returns (uint[] memory result) {
+        Bitmap storage bitmap
+    ) internal view returns (uint[] memory result) {
         result = new uint[](MAX_INDEX);
 
         uint i = 0;
         uint n = 0;
+        uint map = bitmap.map;
 
         while (i < MAX_INDEX) {
-            if (bitmap & _mask(i) != 0) {
+            if (map & _mask(i) != 0) {
                 result[n++] = i;
             }
 
@@ -40,47 +48,37 @@ library Bitmap {
     /**
      * @dev Sets the bit at `index` to the boolean `value`.
      */
-    function setTo(
-        uint256 bitmap,
-        uint256 index,
-        bool value
-    ) internal pure returns (uint256) {
-        _validateIndex(index);
-
+    function setTo(Bitmap storage bitmap, uint256 index, bool value) internal {
         if (value) {
-            return set(bitmap, index);
+            set(bitmap, index);
         } else {
-            return unset(bitmap, index);
+            unset(bitmap, index);
         }
     }
 
     /**
      * @dev Sets the bit at `index`.
      */
-    function set(
-        uint256 bitmap,
-        uint256 index
-    ) internal pure returns (uint256) {
+    function set(Bitmap storage bitmap, uint256 index) internal {
         _validateIndex(index);
 
-        return bitmap | (1 << (index & 0xff));
+        bitmap.map |= (1 << (index & 0xff));
     }
 
     /**
      * @dev Unsets the bit at `index`.
      */
-    function unset(
-        uint256 bitmap,
-        uint256 index
-    ) internal pure returns (uint256) {
+    function unset(Bitmap storage bitmap, uint256 index) internal {
         _validateIndex(index);
 
-        return bitmap & ~_mask(index);
+        bitmap.map &= ~_mask(index);
     }
 
-    function nextUnset(uint256 bitmap) internal pure returns (bool, uint) {
+    function nextUnset(Bitmap storage bitmap) internal view returns (bool, uint) {
+        uint map = bitmap.map;
+        
         for (uint i = 0; i < MAX_INDEX; i++) {
-            if (bitmap & _mask(i) == 0) {
+            if (map & _mask(i) == 0) {
                 return (true, i);
             }
         }

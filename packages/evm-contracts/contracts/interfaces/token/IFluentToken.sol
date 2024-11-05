@@ -13,13 +13,10 @@ interface IFluentToken is
     IERC20Metadata,
     IFluentHostable
 {
-    function initialize(
-        IFluentHost host_,
-        IERC20Metadata token_,
-        string calldata name_,
-        string calldata symbol_
-    ) external;
-
-    // function openStream(address account) external;
-    // function closeStream(address account) external;
+    // function initialize(
+    //     IFluentHost host_,
+    //     IERC20Metadata token_,
+    //     string calldata name_,
+    //     string calldata symbol_
+    // ) external;
 }
