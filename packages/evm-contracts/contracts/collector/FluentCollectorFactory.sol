@@ -23,7 +23,7 @@ contract FluentCollectorFactory is
     using Account for address;
     using Bitmap for uint256;
 
-    address public implementation;
+    IFluentCollector public implementation;
 
     EnumerableSet.AddressSet private _collectors;
 
@@ -32,7 +32,7 @@ contract FluentCollectorFactory is
 
     function initialize(
         IFluentHost host,
-        address implemenation_
+        IFluentCollector implemenation_
     ) external initializer onlyProxy {
         implementation = implemenation_;
 
@@ -61,7 +61,7 @@ contract FluentCollectorFactory is
         UUPSProxy proxy = new UUPSProxy();
         address proxyAddress = address(proxy);
 
-        proxy.initializeProxy(implementation);
+        proxy.initializeProxy(address(implementation));
 
         bytes32 slot = account.slot(index);
         IFluentCollector collector = IFluentCollector(proxyAddress);

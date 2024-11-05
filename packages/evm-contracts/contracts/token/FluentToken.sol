@@ -50,17 +50,17 @@ contract FluentToken is IFluentToken, FluentHostable, UUPSUpgradeable {
     /**************************************************************************
      * Stream functions
      *************************************************************************/
-    function openStream(address account, uint index) external onlyHost {
-        // set bitmap slot at index to 1
-    }
+    // function openStream(address account, uint index) external onlyHost {
+    //     // set bitmap slot at index to 1
+    // }
 
-    function closeStream(address account, uint index) external onlyHost {
-        // set bitmap slot at index to 0
-    }
+    // function closeStream(address account, uint index) external onlyHost {
+    //     // set bitmap slot at index to 0
+    // }
 
-    function accountStreams(address account) external {
-        // call host with local token mask bitmap
-    }
+    // function accountStreams(address account) external {
+    //     // call host with local token mask bitmap
+    // }
 
     /**************************************************************************
      * Token wrapper functions

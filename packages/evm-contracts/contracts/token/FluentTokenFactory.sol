@@ -1,44 +1,75 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.27;
 
+import {Bitmap} from "../lib/Bitmap.sol";
+import {Account} from "../lib/Account.sol";
+import {Storage} from "../lib/Storage.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
-import {BeaconProxy} from "@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol";
+
 import {UUPSProxy} from "../upgradeability/UUPSProxy.sol";
-
+import {FluentHostable} from "../host/FluentHostable.sol";
+import {IFluentHost} from "../interfaces/host/IFluentHost.sol";
 import {IFluentToken} from "../interfaces/token/IFluentToken.sol";
+import {IFluentCollector} from "../interfaces/collector/IFluentCollector.sol";
+import {IFluentCollectorFactory} from "../interfaces/collector/IFluentCollectorFactory.sol";
+import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
+import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
-contract FluentTokenFactory {
-    IFluentToken public immutable _TOKEN_IMPLEMENTAION;
+contract FluentTokenFactory is FluentHostable, UUPSUpgradeable {
+    using EnumerableSet for EnumerableSet.AddressSet;
 
-    mapping(address => address) private _proxies;
+    IFluentToken public implementation;
 
-    constructor(IFluentToken tokenImplementation) {
-        _TOKEN_IMPLEMENTAION = IFluentToken(tokenImplementation);
+    EnumerableSet.AddressSet private _tokens;
+    mapping(address => address) private _wrappers;
+
+    function initialize(
+        IFluentHost host,
+        IFluentToken implemenation_
+    ) external initializer onlyProxy {
+        implementation = implemenation_;
+
+        __UUPSUpgradeable_init();
+        __FluentHostable_init(host);
     }
 
-    function createToken(IERC20Metadata underlying) external returns (IFluentToken) {
+    /**************************************************************************
+     * Core functions
+     *************************************************************************/
+    function createToken(
+        IERC20Metadata underlying
+    ) external onlyProxy returns (IFluentToken) {
         address underlyingAddress = address(underlying);
 
         require(
-            _proxies[underlyingAddress] == address(0),
+            address(_wrappers[underlyingAddress]) == address(0),
             "Token already exists"
         );
 
         bytes32 salt = keccak256(abi.encode(underlyingAddress));
 
         UUPSProxy proxy = new UUPSProxy{salt: salt}();
+
         address proxyAddress = address(proxy);
-
-        _proxies[underlyingAddress] = proxyAddress;
-        proxy.initializeProxy(address(_TOKEN_IMPLEMENTAION));
-
         IFluentToken token = IFluentToken(proxyAddress);
 
-        string memory name = string.concat("Fluent ", underlying.name());
-        string memory symbol = string.concat(underlying.symbol(), '.fl');
+        proxy.initializeProxy(address(implementation));
 
-        // token.initialize(underlying, name, symbol);
+        string memory name = string.concat("Fluent ", underlying.name());
+        string memory symbol = string.concat(underlying.symbol(), ".fl");
+
+        token.initialize(host, underlying, name, symbol);
+
+        _tokens.add(proxyAddress);
+        _wrappers[underlyingAddress] = proxyAddress;
 
         return token;
     }
+
+    /**************************************************************************
+     * UUPS Upgrade implementation
+     *************************************************************************/
+    function _authorizeUpgrade(
+        address newImplementation
+    ) internal virtual override {}
 }

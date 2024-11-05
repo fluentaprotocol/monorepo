@@ -2,6 +2,7 @@
 pragma solidity ^0.8.27;
 
 import {IFluentCollectorFactory} from "../collector/IFluentCollectorFactory.sol";
+import {IFluentToken} from "../token/IFluentToken.sol";
 
 interface IFluentHost {
     error UnauthorizedCollector(address actor);

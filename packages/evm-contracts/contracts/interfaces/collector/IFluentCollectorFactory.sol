@@ -6,7 +6,7 @@ import {IFluentCollector} from "./IFluentCollector.sol";
 interface IFluentCollectorFactory {
     error UnauthorizedCollector(address actor);
 
-    function implementation() external view returns (address);
+    function implementation() external view returns (IFluentCollector);
 
     function isCollector(address collector) external view returns (bool);
 

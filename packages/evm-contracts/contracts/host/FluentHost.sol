@@ -10,6 +10,7 @@ import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IER
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {IFluentCollector} from "../interfaces/collector/IFluentCollector.sol";
 import {IFluentCollectorFactory} from "../interfaces/collector/IFluentCollectorFactory.sol";
+import {IFluentToken} from "../interfaces/token/IFluentToken.sol";
 
 import {ContextUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ContextUpgradeable.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
@@ -109,14 +110,17 @@ contract FluentHost is IFluentHost, UUPSUpgradeable, ContextUpgradeable {
      * Stream functions
      *************************************************************************/
     function openStream(
-        address account
+        address account,
+        IFluentToken token
     ) external onlyCollector onlyProxy returns (bytes32) {
         address collector = _msgSender();
+
+        // generate stream id based on token
 
         revert("FluentHost.openStream() not implemented");
     }
 
-    function closeStream(address account) external onlyCollector onlyProxy {
+    function closeStream(address account) external view onlyCollector onlyProxy {
         address collector = _msgSender();
 
         revert("FluentHost.closeStream() not implemented");
@@ -218,4 +222,6 @@ contract FluentHost is IFluentHost, UUPSUpgradeable, ContextUpgradeable {
     function _authorizeUpgrade(
         address newImplementation
     ) internal virtual override {}
+
+    function openStream(address account) external override returns (bytes32) {}
 }

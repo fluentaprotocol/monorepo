@@ -9,8 +9,6 @@ import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {ContextUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ContextUpgradeable.sol";
-import {ERC165Upgradeable} from "@openzeppelin/contracts-upgradeable/utils/introspection/ERC165Upgradeable.sol";
-import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {IFluentToken} from "../interfaces/token/IFluentToken.sol";
 import {IFluentCollector} from "../interfaces/collector/IFluentCollector.sol";
 import {IFluentCollectorFactory} from "../interfaces/collector/IFluentCollectorFactory.sol";
@@ -50,6 +48,7 @@ contract FluentCollector is IFluentCollector, UUPSUpgradeable, FluentHostable {
     /**************************************************************************
      * Metadata functions
      *************************************************************************/
+    /// @dev The collector factory that created this collector
     function factory() external view returns (IFluentCollectorFactory) {
         return host.collectorFactory();
     }
