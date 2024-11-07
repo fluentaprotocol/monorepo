@@ -16,7 +16,6 @@ in {
     config = {
       # Allow unfree packages
       allowUnfree = true;
-      allowUnfreePredicate = pkg: builtins.elem (builtins.parseDrvName pkg.name).name ["steam"];
 
       permittedInsecurePackages = [
       #    "openssl-1.1.1v"
@@ -82,8 +81,12 @@ in {
       # freetype
       # fuse-common
       # gcc
-      cargo
-      rustc
+      #cargo
+      #clippy
+      #rustfmt
+      gcc_multi
+      rustup
+      #rustc
       gimp
       git
       # github-desktop

@@ -234,6 +234,7 @@
     steam-run
     conky
     cron
+    qemu
     #(waybar.overrideAttrs(oldAttrs:{
     #  mesonFlags = oldAttrs.mesonFlags ++ [ "-Dexperimental=true" ];
     #  })
