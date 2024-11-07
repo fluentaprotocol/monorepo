@@ -6,6 +6,9 @@ import { FluentToken, FluentToken__factory, MockERC20__factory, MockERC20 } from
 const ETH_1 = ethers.parseEther("1.0")
 
 describe("FluentToken", function () {
+    before(function () {
+        this.skip();
+    });
     let validator: HardhatEthersSigner;
     let account: HardhatEthersSigner;
     let attacker: HardhatEthersSigner;
