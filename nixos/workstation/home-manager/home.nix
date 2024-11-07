@@ -81,12 +81,9 @@ in {
       # freetype
       # fuse-common
       # gcc
-      #cargo
-      #clippy
-      #rustfmt
       gcc_multi
       rustup
-      #rustc
+      nodejs_22
       gimp
       git
       # github-desktop
