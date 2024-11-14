@@ -84,6 +84,7 @@ in {
       gcc_multi
       rustup
       nodejs_22
+      bun
       gimp
       git
       # github-desktop
@@ -115,6 +116,7 @@ in {
       # protonup-ng
       python3Full
       python.pkgs.pip
+      python312Packages.pyzbar
       #qemu
       # ripgrep
       # rofi
@@ -140,6 +142,7 @@ in {
       obs-studio
       obsidian
       libreoffice-qt6-fresh
+      wget
   ];
 
   # Home Manager is pretty good at managing dotfiles. The primary way to manage

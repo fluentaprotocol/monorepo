@@ -7,6 +7,8 @@ version-controlled, which makes it easy to reproduce and share. It is also
 extensible, which allows me to easily add new packages, services, and
 configuration options.
 
+Download buffer size is full; consider increasing the 'download-buffer-size' setting
+
 ## Installation
 
 To install NixOS, follow the [official installation instructions](https://nixos.org/manual/nixos/stable/index.html#sec-installation).
