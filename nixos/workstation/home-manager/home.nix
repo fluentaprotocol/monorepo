@@ -117,6 +117,7 @@ in {
       python3Full
       python.pkgs.pip
       python312Packages.pyzbar
+      ffmpeg_7-full
       #qemu
       # ripgrep
       # rofi
