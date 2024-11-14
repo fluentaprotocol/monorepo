@@ -12,6 +12,7 @@
 
   nix = {
     settings = {
+      download-buffer-size = 167108864;
       warn-dirty = false;
       experimental-features = "nix-command flakes";
       auto-optimise-store = true;
