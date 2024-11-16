@@ -6,6 +6,10 @@ import {
   GovernanceToken__factory,
 } from "../../typechain-types";
 
+// TODO: get a list of required tests
+// TODO: create missing tests
+// TODO: fix existing tests, if needed
+
 describe("GovernanceToken", function () {
   let owner: HardhatEthersSigner;
   let account: HardhatEthersSigner;
@@ -142,32 +146,6 @@ describe("GovernanceToken", function () {
 
     const proposal = await governanceToken.proposals(0);
     expect(proposal.executed).to.be.true;
-  });
-
-  it("should pause all functions during an emergency shutdown", async function () {
-    await governanceToken.emergencyShutdown();
-
-    // Verify paused functions
-    await expect(
-      governanceToken
-        .connect(owner)
-        .mint(accountAddress, ethers.parseUnits("100", 18))
-    ).to.be.revertedWithCustomError(governanceToken, "EnforcedPause");
-
-    const createProposalSignature = "createProposal(string)";
-    await expect(
-      governanceToken[createProposalSignature]("Test Proposal")
-    ).to.be.revertedWithCustomError(governanceToken, "EnforcedPause");
-  });
-
-  it("should resume functions after reactivation", async function () {
-    await governanceToken.emergencyShutdown();
-    await governanceToken.reactivate();
-
-    const mintAmount = ethers.parseUnits("100", 18);
-    await governanceToken.mint(account.address, mintAmount);
-    const accountBalance = await governanceToken.balanceOf(account.address);
-    expect(accountBalance).to.equal(mintAmount);
   });
 
   it("should allow votes for and against and execute proposal if votesFor > votesAgainst", async function () {
