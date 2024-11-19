@@ -7,11 +7,12 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC20Errors} from "@openzeppelin/contracts/interfaces/draft-IERC6093.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
-interface IFluentToken is
-    IERC20,
-    IERC20Errors,
-    IERC20Metadata,
-    IFluentHostable
-{
-    function updateMask(address account, uint index, bool active) external;
+interface IFluentToken  {
+    error InsufficientBuffer(address account, uint256 buffer, uint256 needed);
+
+    function performTransaction() external;
+
+    function increaseBuffer(address account, uint256 value) external;
+
+    function decreaseBuffer(address account, uint256 value) external;
 }

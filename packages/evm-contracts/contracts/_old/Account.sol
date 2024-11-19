@@ -41,7 +41,7 @@ library Account {
         uint index
     ) private pure returns (bytes32 slot_) {
         assembly {
-            slot_ := add(account_, add(index, 1))
+            slot_ := add(account_, index)
         }
     }
 
@@ -54,7 +54,7 @@ library Account {
         }
 
         assembly {
-            index := sub(sub(slot_, account_), 1)
+            index := sub(slot_, account_)
         }
     }
 
@@ -62,12 +62,12 @@ library Account {
         bytes32 account_,
         bytes32 slot_
     ) private pure returns (bool) {
-        bytes32 min;
         bytes32 max;
+        
         assembly {
-            min := add(account_, 1)
-            max := add(account_, add(ACCOUNT_SLOT_COUNT, 1))
+            max := add(account_, ACCOUNT_SLOT_COUNT)
         }
-        return (slot_ >= min && slot_ <= max);
+
+        return (slot_ >= account_ && slot_ <= max);
     }
 }

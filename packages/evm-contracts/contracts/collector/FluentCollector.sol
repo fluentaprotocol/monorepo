@@ -14,80 +14,114 @@ import {IFluentCollector} from "../interfaces/collector/IFluentCollector.sol";
 import {IFluentCollectorFactory} from "../interfaces/collector/IFluentCollectorFactory.sol";
 import {IFluentHost} from "../interfaces/host/IFluentHost.sol";
 import {FluentHostable} from "../host/FluentHostable.sol";
+import {Storage} from "../lib/Storage.sol";
 
+import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import "hardhat/console.sol";
 
-contract FluentCollector is IFluentCollector, UUPSUpgradeable, FluentHostable {
-    bytes32 public slot;
+contract FluentCollector is
+    IFluentCollector,
+    FluentHostable,
+    UUPSUpgradeable,
+    AccessControlUpgradeable
+{
+    using SafeERC20 for IFluentToken;
+    using EnumerableSet for EnumerableSet.Bytes32Set;
+    using Storage for bytes32;
 
-    mapping(address => bytes32) private _streams;
+    address public owner;
+    address public factory;
 
-    /// @dev initialize the proxy contract
-    function initialize(IFluentHost host_, bytes32 slot_) external initializer {
-        slot = slot_;
+    mapping(bytes32 => address) _streams;
+
+    function initialize(
+        address owner_,
+        address factory_,
+        IFluentHost host_
+    ) external initializer {
+        owner = owner_;
+        factory = factory_;
 
         __Context_init();
         __UUPSUpgradeable_init();
         __FluentHostable_init(host_);
     }
 
-    /**************************************************************************
-     * Modifiers
-     *************************************************************************/
-    /// @dev only allow factory to be msg sender
+    function openStream(IFluentToken token) external {
+        address account = _msgSender();
+
+        // Check if account is not the owner of this collector
+        if (account == owner) {
+            revert("InvalidSender");
+        }
+
+        bytes32 id = _streamId(account);
+
+        // Check if stream not already exists
+        if (_streams[id] != address(0)) {
+            revert("StreamAlreadyExists");
+        }
+
+        // Calculate the first subscription amount + deposit
+        // uint256 amount = 1e18;
+        // uint256 deposit = (amount / 100) * 33;
+
+        // Transfer the first subscription amount + deposit
+        // token.safeTransferFrom(account, address(this), amount + deposit);
+
+        // Register the stream with the host
+        host.registerStream(id, token);
+
+        // Store the stream data
+        bytes32[] memory data = new bytes32[](1);
+        data[0] = bytes32(uint256(uint160(account)));
+
+        id.store(data);
+
+        _streams[id] = account;
+    }
+
+    function closeStream() external {
+        address account = _msgSender();
+        bytes32 stream = _streamId(account);
+
+        // Load the stream data
+        bytes32[] memory data = stream.load(1);
+
+        // // Unpack the stream data
+        // uint256 amount = uint256(data[0]);
+        IFluentToken token = IFluentToken(address(0));
+
+        // uint256 reward = (amount * 2e6) / 100e6; // 2% fee
+        // uint256 due = amount - reward;
+
+        host.deleteStream(stream, token);
+
+        stream.clear(1);
+        // TODO update all the data here
+
+        delete _streams[stream];
+    }
+
+    function terminate() external view onlyFactory {
+        // TODO: transfer all of the balances to the owner account
+
+        revert("terminate() not implemented yet");
+    }
+
+    function _streamId(address account) private view returns (bytes32) {
+        return keccak256(abi.encode(account, address(this)));
+    }
+
+    function _authorizeUpgrade(address newImplementation) internal override {}
+
     modifier onlyFactory() {
         address sender = _msgSender();
 
-        if (sender != address(host.collectorFactory())) {
-            revert UnauthorizedFactory(sender);
+        if (sender != factory) {
+            revert("UnauthorizedFactory");
         }
 
         _;
     }
-
-    /**************************************************************************
-     * Metadata functions
-     *************************************************************************/
-    /// @dev The collector factory that created this collector
-    function factory() external view returns (IFluentCollectorFactory) {
-        return host.collectorFactory();
-    }
-
-    /**************************************************************************
-     * Stream functions
-     *************************************************************************/
-    /// @dev open a new stream with the collector
-    function openStream(IFluentToken token) external onlyProxy {
-        address account = _msgSender();
-
-        if (_streams[account] != bytes32(0)) {
-            revert("User already subscribed");
-        }
-
-        _streams[account] = host.openStream(account, token);
-    }
-
-    /// @dev close the exisiting stream with the collector if the accoutn has one
-    function closeStream() external {
-        address account = _msgSender();
-        bytes32 stream = _streams[account];
-
-        if (stream == bytes32(0)) {
-            revert("User not subscribed");
-        }
-
-        host.closeStream(stream);
-
-        delete _streams[account];
-    }
-
-    /// @dev terminate collector and mark as destroyed
-    function terminate() external view onlyFactory onlyProxy {
-        revert("FluentCollector.terminate() not implemented");
-    }
-
-    /**************************************************************************
-     * UUPS Upgrade implementation
-     *************************************************************************/
-    function _authorizeUpgrade(address newImplementation) internal override {}
 }

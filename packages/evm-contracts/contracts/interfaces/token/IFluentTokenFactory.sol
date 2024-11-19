@@ -10,4 +10,6 @@ interface IFluentTokenFactory {
     ) external returns (IFluentToken);
 
     function implementation() external view returns (IFluentToken);
+
+    function whitelisted(address token) external view returns (bool);
 }

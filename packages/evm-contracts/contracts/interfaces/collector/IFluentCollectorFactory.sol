@@ -8,7 +8,7 @@ interface IFluentCollectorFactory {
 
     function implementation() external view returns (IFluentCollector);
 
-    function isCollector(address collector) external view returns (bool);
+    // function whitelisted(address collector) external view returns (bool);
 
     function openCollector() external;
 

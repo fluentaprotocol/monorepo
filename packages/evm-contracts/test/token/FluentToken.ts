@@ -4,6 +4,7 @@ import { HardhatEthersSigner } from "@nomicfoundation/hardhat-ethers/signers";
 import { FluentToken, FluentToken__factory, MockERC20__factory, MockERC20 } from "../../typechain-types";
 
 const ETH_1 = ethers.parseEther("1.0")
+const ADDR_0 = ethers.ZeroAddress;
 
 describe("FluentToken", function () {
     let validator: HardhatEthersSigner;
@@ -41,7 +42,7 @@ describe("FluentToken", function () {
         tokenSymbol = `${await underlying.symbol()}.fx`;
         tokenName = `Fluent ${await underlying.symbol()}`;
 
-        token = await upgrades.deployProxy(tokenFactory, [underlyingAddress, tokenName, tokenSymbol], {
+        token = await upgrades.deployProxy(tokenFactory, [ADDR_0, underlyingAddress, tokenName, tokenSymbol], {
             kind: 'uups',
             redeployImplementation: 'always'
         }).then(x => x.connect(account)) as unknown as FluentToken;
@@ -70,53 +71,106 @@ describe("FluentToken", function () {
         });
     });
 
-    describe("Deposits and withdrawals", function () {
+    describe("Deposits", function () {
         beforeEach(async function () {
-            await underlying.connect(account).approve(token.getAddress(), ETH_1);
+            await underlying.connect(account).approve(tokenAddress, ETH_1);
         });
 
-        it("# 2.1 Should allow account to deposit and mint", async function () {
-            await token.deposit(ETH_1);
+        it("# 2.1 Should allow deposit and mint tokens", async function () {
+            await token.connect(account).deposit(ETH_1);
 
-            expect(await token.balanceOf(accountAddress)).to.eq(ETH_1);
-            expect(await token.totalSupply()).to.eq(ETH_1);
+            expect(await token.balanceOf(accountAddress)).to.equal(ETH_1);
+            expect(await token.totalSupply()).to.equal(ETH_1);
         });
 
-        it("# 2.2 Should allow account to burn and withdraw balance", async function () {
-            await token.deposit(ETH_1);
-            await token.withdraw(ETH_1);
+        it("# 2.2 Should revert on deposit with insufficient allowance", async function () {
+            await underlying.connect(account).approve(tokenAddress, ETH_1 - 1n);
 
-            expect(await token.balanceOf(accountAddress)).to.eq(0);
-            expect(await underlying.balanceOf(accountAddress)).to.eq(ETH_1);
-        });
-
-        it("# 2.3 Should revert if withdraw amount exceeds account balance", async function () {
-            const balance = ETH_1;
-            const amount = ETH_1 + 1n;
-
-            await token.deposit(balance);
-
-            await expect(token.withdraw(amount)).to.be.revertedWithCustomError(token, "ERC20InsufficientBalance").withArgs(accountAddress, balance, amount);
+            await expect(token.connect(account).deposit(ETH_1)).to.be.revertedWithCustomError(token, 'ERC20InsufficientAllowance')
         });
     });
 
-    describe("Flows", function () {
-        let flow: string;
+    describe("Withdrawals", function () {
         beforeEach(async function () {
-            await underlying.connect(account).approve(token.getAddress(), ETH_1);
-            await token.initiateFlow(attackerAddress, ETH_1);
-
-            flow = (await token.mapAccountFlows())[0]
+            await underlying.connect(account).approve(tokenAddress, ETH_1);
+            await token.connect(account).deposit(ETH_1);
         });
 
-        it("# 3.1 Should allow account initiate flow", async function () {
-            expect((await token.mapAccountFlows()).length).to.eq(1);
-        });
-        
-        it("# 3.1 Should allow account initiate flow", async function () {
-            console.log(flow)
+        it("# 3.1 Should allow withdrawal and burn tokens", async function () {
+            await token.connect(account).withdraw(ETH_1);
 
-            expect((await token.mapAccountFlows()).length).to.eq(1);
+            expect(await token.balanceOf(accountAddress)).to.equal(0);
+            expect(await underlying.balanceOf(accountAddress)).to.equal(ETH_1);
+        });
+
+        it("# 3.2 Should revert on withdrawal exceeding balance", async function () {
+            await expect(token.connect(account).withdraw(ETH_1 + 1n)).to.be.revertedWithCustomError(
+                token,
+                "ERC20InsufficientBalance"
+            ).withArgs(accountAddress, ETH_1, ETH_1 + 1n);
+        });
+    });
+
+    describe("Transfers", function () {
+        beforeEach(async function () {
+            await underlying.connect(account).approve(tokenAddress, ETH_1);
+            await token.connect(account).deposit(ETH_1);
+        });
+
+        it("# 4.1 Should allow token transfers", async function () {
+            await token.connect(account).transfer(attackerAddress, ETH_1);
+
+            expect(await token.balanceOf(accountAddress)).to.equal(0);
+            expect(await token.balanceOf(attackerAddress)).to.equal(ETH_1);
+        });
+
+        it("# 4.2 Should revert on transfer exceeding balance", async function () {
+            await expect(
+                token.connect(account).transfer(attackerAddress, ETH_1 + 1n)
+            ).to.be.revertedWithCustomError(
+                token,
+                "ERC20InsufficientBalance"
+            ).withArgs(accountAddress, ETH_1, ETH_1 + 1n);
+        });
+    });
+
+    describe("Allowance and Approvals", function () {
+        it("# 5.1 Should set and use allowance for transferFrom", async function () {
+            await underlying.connect(account).approve(tokenAddress, ETH_1);
+            await token.connect(account).deposit(ETH_1);
+
+            await token.connect(account).approve(attackerAddress, ETH_1);
+
+            await token.connect(attacker).transferFrom(accountAddress, attackerAddress, ETH_1);
+
+            expect(await token.balanceOf(accountAddress)).to.equal(0);
+            expect(await token.balanceOf(attackerAddress)).to.equal(ETH_1);
+        });
+
+        it("# 5.2 Should revert transferFrom with insufficient allowance", async function () {
+            await underlying.connect(account).approve(tokenAddress, ETH_1);
+            await token.connect(account).deposit(ETH_1);
+
+            await token.connect(account).approve(attackerAddress, ETH_1 - 1n);
+
+            await expect(
+                token.connect(attacker).transferFrom(accountAddress, attackerAddress, ETH_1)
+            ).to.be.revertedWithCustomError(
+                token,
+                "ERC20InsufficientAllowance"
+            ).withArgs(attackerAddress, ETH_1 - 1n, ETH_1);
+        });
+    });
+
+    describe("Upgradeability", function () {
+        it("# 6.1 Should allow upgrades", async function () {
+            const factory = await ethers.getContractFactory("FluentToken", validator);
+            const newImplementation = await upgrades.upgradeProxy(tokenAddress, factory, {
+                redeployImplementation: 'always'
+            });
+
+            const updated = await upgrades.erc1967.getImplementationAddress(await newImplementation.getAddress())
+            expect(await upgrades.erc1967.getImplementationAddress(tokenAddress)).to.equal(updated);
         });
     });
 })

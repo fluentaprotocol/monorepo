@@ -1,18 +1,7 @@
 // SPDX-License-Identifier: AGPLv3
 pragma solidity ^0.8.27;
 
-import {Encoder} from "./Encoder.sol";
-
 library Storage {
-    using Encoder for *;
-
-    /**************************************************************************
-     * Store functions
-     *************************************************************************/
-    function storeAddress(bytes32 slot, address data) internal {
-        store(slot, data.encodeAddress());
-    }
-
     function store(bytes32 slot, bytes32 data) internal {
         bytes32[] memory _data = new bytes32[](1);
 
@@ -28,13 +17,6 @@ library Storage {
                 sstore(add(slot, i), d)
             }
         }
-    }
-
-    /**************************************************************************
-     * Load functions
-     *************************************************************************/
-    function loadAddress(bytes32 slot) internal view returns (address data) {
-        return load(slot).decodeAddress();
     }
 
     function load(bytes32 slot) internal view returns (bytes32) {
@@ -57,9 +39,6 @@ library Storage {
         }
     }
 
-    /**************************************************************************
-     * Clear functions
-     *************************************************************************/
     function clear(bytes32 slot) internal {
         clear(slot, 1);
     }
