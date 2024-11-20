@@ -224,6 +224,7 @@
   # Do not forget to add an editor to edit configuration.nix! The Nano editor is also installed by default.
   #  wget
     #home-manager
+    nix-index
     vim
     inputs.nix-software-center.packages.${system}.nix-software-center
     #virtualbox
