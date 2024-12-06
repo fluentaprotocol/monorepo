@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.27;
+pragma solidity ^0.8.4;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
@@ -12,10 +12,9 @@ import {ERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/
 import {ContextUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ContextUpgradeable.sol";
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {IFluentToken} from "../interfaces/token/IFluentToken.sol";
-import {IFluentCollector} from "../interfaces/collector/IFluentCollector.sol";
+import {IFluentProvider} from "../interfaces/collector/IFluentCollector.sol";
 import {IFluentHost} from "../interfaces/host/IFluentHost.sol";
 import {FluentHostable} from "../host/FluentHostable.sol";
-import {FluentTokenBase} from "./FluentTokenBase.sol";
 
 import "hardhat/console.sol";
 
@@ -69,7 +68,10 @@ contract FluentToken is
     /**
      * @dev Allow the host to decrease the account buffer.
      */
-    function decreaseBuffer(address account, uint256 value) external onlyHost {
+    function decreaseBuffer(
+        address account,
+        uint256 value
+    ) external override onlyHost {
         uint256 current = buffer[account];
 
         if (current < value) {
@@ -83,20 +85,23 @@ contract FluentToken is
     /**
      * @dev Allow the host to increase the account buffer.
      */
-    function increaseBuffer(address account, uint256 value) external onlyHost {
+    function increaseBuffer(
+        address account,
+        uint256 value
+    ) external override onlyHost {
         _burn(account, value);
         buffer[account] += value;
     }
 
     /**
-     * @dev Allow the host to update balances according to authorized transactions
+     * @dev Allow the host to process transactions
      */
-    function performTransaction() external view onlyHost {
-        // Actor?
-        // Account?
-        // Collector?
-
-        revert("performTransaction not implememented");
+    function transact(
+        address from,
+        address to,
+        uint256 value
+    ) external onlyHost {
+        _update(from, to, value);
     }
 
     function _authorizeUpgrade(

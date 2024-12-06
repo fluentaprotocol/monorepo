@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.27;
+pragma solidity ^0.8.4;
 
 import {ContextUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ContextUpgradeable.sol";
 import {IFluentHost} from "../interfaces/host/IFluentHost.sol";
 import {IFluentHostable} from "../interfaces/host/IFluentHostable.sol";
 
-abstract contract FluentHostable is IFluentHostable, ContextUpgradeable {
+abstract contract FluentHostable is ContextUpgradeable {
     IFluentHost public host;
 
     error UnauthorizedHost();

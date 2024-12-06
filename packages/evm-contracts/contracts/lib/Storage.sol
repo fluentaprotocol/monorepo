@@ -2,14 +2,14 @@
 pragma solidity ^0.8.27;
 
 library Storage {
-    function store(bytes32 slot, bytes32 data) internal {
+    function sstore(bytes32 slot, bytes32 data) internal {
         bytes32[] memory _data = new bytes32[](1);
 
         _data[0] = data;
-        store(slot, _data);
+        sstore(slot, _data);
     }
 
-    function store(bytes32 slot, bytes32[] memory data) internal {
+    function sstore(bytes32 slot, bytes32[] memory data) internal {
         for (uint i = 0; i < data.length; ++i) {
             bytes32 d = data[i];
 
@@ -19,13 +19,22 @@ library Storage {
         }
     }
 
-    function load(bytes32 slot) internal view returns (bytes32) {
-        bytes32[] memory data = load(slot, 1);
+    function sload(bytes32 slot) internal view returns (bytes32) {
+        bytes32[] memory data = sload(slot, 1);
 
         return data[0];
     }
 
-    function load(
+    function sloadt(
+        bytes32 slot
+    ) internal view returns (bytes32 left, bytes32 right) {
+        assembly {
+            left := sload(slot)
+            right := sload(add(slot, 1))
+        }
+    }
+
+    function sload(
         bytes32 slot,
         uint dataLength
     ) internal view returns (bytes32[] memory data) {
@@ -39,11 +48,11 @@ library Storage {
         }
     }
 
-    function clear(bytes32 slot) internal {
-        clear(slot, 1);
+    function sclear(bytes32 slot) internal {
+        sclear(slot, 1);
     }
 
-    function clear(bytes32 slot, uint dataLength) internal {
+    function sclear(bytes32 slot, uint dataLength) internal {
         for (uint j = 0; j < dataLength; ++j) {
             assembly {
                 sstore(add(slot, j), 0)

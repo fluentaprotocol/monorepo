@@ -162,8 +162,25 @@ describe("FluentToken", function () {
         });
     });
 
+    describe("Transactions", function () {
+        beforeEach(async () => {
+            await underlying.mint(account, ETH_1 * 3n);
+            await underlying.connect(account).approve(tokenAddress, ETH_1 * 3n);
+            await token.connect(account).deposit(ETH_1 * 3n);
+        })
+        
+        // it("# 6.1 Should revert transferFrom with insufficient allowance", async function () {
+        //     // Process transaction
+        //     await token.processTransaction(accountAddress, attackerAddress, ETH_1);
+      
+        //     // Check balances
+        //     expect(await token.balanceOf(accountAddress)).to.equal(0);
+        //     expect(await token.balanceOf(attackerAddress)).to.equal(ETH_1 * 3n);
+        // });
+    });
+
     describe("Upgradeability", function () {
-        it("# 6.1 Should allow upgrades", async function () {
+        it("# 7.1 Should allow upgrades", async function () {
             const factory = await ethers.getContractFactory("FluentToken", validator);
             const newImplementation = await upgrades.upgradeProxy(tokenAddress, factory, {
                 redeployImplementation: 'always'

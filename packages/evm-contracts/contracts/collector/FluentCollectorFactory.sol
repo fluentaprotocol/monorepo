@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.27;
+pragma solidity ^0.8.4;
 
-import {FluentCollector} from "./FluentCollector.sol";
+import {FluentProvider} from "./FluentProvider.sol";
 import {FluentHostable} from "../host/FluentHostable.sol";
 import {UUPSProxy} from "../upgradeability/UUPSProxy.sol";
 import {IFluentHost} from "../interfaces/host/IFluentHost.sol";
-import {IFluentCollector} from "../interfaces/collector/IFluentCollector.sol";
+import {IFluentProvider} from "../interfaces/collector/IFluentCollector.sol";
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import {IFluentCollectorFactory} from "../interfaces/collector/IFluentCollectorFactory.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
@@ -17,12 +17,12 @@ contract FluentCollectorFactory is
 {
     using EnumerableSet for EnumerableSet.AddressSet;
 
-    IFluentCollector public implementation;
+    IFluentProvider public implementation;
     EnumerableSet.AddressSet private _collectors;
 
     function initialize(
         IFluentHost host,
-        IFluentCollector implemenation_
+        IFluentProvider implemenation_
     ) external initializer onlyProxy {
         implementation = implemenation_;
 
@@ -36,22 +36,22 @@ contract FluentCollectorFactory is
         UUPSProxy proxy = new UUPSProxy();
 
         address address_ = address(proxy);
-        FluentCollector collector = FluentCollector(address_);
+        FluentProvider collector = FluentProvider(address_);
 
         proxy.initializeProxy(address(implementation));
-        collector.initialize(account, address(this), host);
+        collector.initialize(account, host);
 
         _collectors.add(address_);
     }
 
-    function closeCollector(IFluentCollector collector) external onlyProxy {
+    function closeCollector(IFluentProvider collector) external onlyProxy {
         address account = _msgSender();
 
         if (collector.owner() != account) {
             revert("UnauthorizedOwner");
         }
 
-        collector.terminate();
+        // collector.terminate();
 
         _collectors.remove(address(collector));
     }
