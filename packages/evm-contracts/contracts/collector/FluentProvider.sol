@@ -5,8 +5,8 @@ import {Storage} from "../lib/Storage.sol";
 import {FluentHostable} from "../host/FluentHostable.sol";
 import {IFluentHost} from "../interfaces/host/IFluentHost.sol";
 import {IFluentToken} from "../interfaces/token/IFluentToken.sol";
-import {IFluentProvider} from "../interfaces/collector/IFluentCollector.sol";
-import {IFluentCollectorFactory} from "../interfaces/collector/IFluentCollectorFactory.sol";
+import {IFluentProvider} from "../interfaces/provider/IFluentProvider.sol";
+import {IFluentProviderFactory} from "../interfaces/provider/IFluentProviderFactory.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
@@ -16,6 +16,7 @@ import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {ContextUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ContextUpgradeable.sol";
+import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
 import "hardhat/console.sol";
 
@@ -25,58 +26,58 @@ enum Interval {
 
 struct Tier {
     string name;
-    uint32 window;
-    uint32 interval;
+    uint64 window;
+    uint64 interval;
+    mapping(address => uint256) _buckets;
 }
 
-struct bucket {
-    bytes4 tier;
-    address token;
-    uint256 amount;
-}
-
-contract FluentProvider is IFluentProvider, FluentHostable, UUPSUpgradeable {
+contract FluentProvider is IFluentProvider, FluentHostable {
     using SafeERC20 for IFluentToken;
     using EnumerableSet for EnumerableSet.Set;
 
     address public owner;
 
-    function initialize(
-        address owner_,
-        IFluentHost host_
-    ) external initializer {
+    function initialize(address owner_, address host_) external override initializer {
+        address sender = _msgSender();
+        IFluentHost host__ = IFluentHost(host_);
+
+        if (sender != host__.providerFactory()) {
+            revert("UnauthorizedFactory");
+        }
+
         owner = owner_;
 
         __Context_init();
-        __UUPSUpgradeable_init();
-        __FluentHostable_init(host_);
+        __FluentHostable_init(host__);
     }
 
-    // function bucketData(
-    //     bytes4 bucket
-    // )
-    //     external
-    //     view
-    //     returns (address token, uint64 updated, uint32 interval, uint256 amount)
-    // {}
+    function bucketData(
+        bytes4 bucket
+    ) external view returns (address token, uint64 interval, uint256 amount) {}
 
     function createTier(
-        bytes32 interval,
-        string calldata name,
-        address[] calldata tokens,
-        uint256[] calldata amounts
-    ) external onlyOwner {
-        if (tokens.length != amounts.length) {
-            revert("InvalidAmounts");
-        }
+        address token,
+        uint256 amount
+    ) external onlyOwner returns (bytes4) {}
 
-        if (tokens.length == 0) {
-            revert("InvalidTokens");
-        }
+    // function createTier(
+    //     uint32 interval,
+    //     uint32 window,
+    //     string calldata name
+    //     // address[] calldata tokens,
+    //     // uint256[] calldata amounts
+    // ) external onlyOwner {
+    //     // if (tokens.length != amounts.length) {
+    //     //     revert("InvalidAmounts");
+    //     // }
 
-        // generate the tier id
-        // create multiple buckets with reference back to the tier
-    }
+    //     // if (tokens.length == 0) {
+    //     //     revert("InvalidTokens");
+    //     // }
+
+    //     // generate the tier id
+    //     // create multiple buckets with reference back to the tier
+    // }
 
     // function createBucket(
     //     IFluentToken token,
@@ -87,9 +88,15 @@ contract FluentProvider is IFluentProvider, FluentHostable, UUPSUpgradeable {
 
     // function deleteBucket() external onlyOwner {}
 
-    function _authorizeUpgrade(address newImplementation) internal override {}
+    // function _authorizeUpgrade(address newImplementation) internal override {}
 
     modifier onlyOwner() {
+        address sender = _msgSender();
+
+        if (sender != owner) {
+            revert("UnauthorizedOwner");
+        }
+
         _;
     }
 }

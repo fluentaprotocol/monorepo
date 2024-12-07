@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPLv3
-pragma solidity ^0.8.27;
+pragma solidity ^0.8.4;
 
+import {UUPSUtils} from "./UUPSUtils.sol";
 import {Proxy} from "@openzeppelin/contracts/proxy/Proxy.sol";
-import {IUUPSProxy} from "../interfaces/upgradeability/IUUPSProxy.sol";
 
 /**
  * @title UUPS (Universal Upgradeable Proxy Standard) Proxy
@@ -14,18 +14,20 @@ import {IUUPSProxy} from "../interfaces/upgradeability/IUUPSProxy.sol";
  *   return values and bubbling of failures.
  * - It defines a fallback function that delegates all calls to the implementation.
  */
-contract UUPSProxy is IUUPSProxy, Proxy {
-    bytes32 internal constant _IMPLEMENTATION_SLOT =
-        0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc;
-
-    function initializeProxy(address implementation) external {
-        require(implementation != address(0), "UUPSProxy: zero address");
+contract UUPSProxy is Proxy {
+    /**
+     * @dev Proxy initialization function.
+     *      This should only be called once and it is permission-less.
+     * @param initialAddress Initial logic contract code address to be used.
+     */
+    function initializeProxy(address initialAddress) external {
+        require(initialAddress != address(0), "UUPSProxy: zero address");
         require(
-            _implementation() == address(0),
+            UUPSUtils.implementation() == address(0),
             "UUPSProxy: already initialized"
         );
-
-        _setImplementation(implementation);
+        
+        UUPSUtils.setImplementation(initialAddress);
     }
 
     /// @dev Proxy._implementation implementation
@@ -34,21 +36,12 @@ contract UUPSProxy is IUUPSProxy, Proxy {
         view
         virtual
         override
-        returns (address impl)
+        returns (address)
     {
-        assembly {
-            impl := sload(_IMPLEMENTATION_SLOT)
-        }
+        return UUPSUtils.implementation();
     }
 
-    /// @dev Set new implementation address.
-    function _setImplementation(address implementation) internal {
-        assembly {
-            sstore(_IMPLEMENTATION_SLOT, implementation)
-        }
-    }
-
-    receive() external payable {
-        _delegate(_implementation());
+    receive() external payable virtual {
+        _fallback();
     }
 }

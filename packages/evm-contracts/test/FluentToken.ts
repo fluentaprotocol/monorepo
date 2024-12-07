@@ -1,7 +1,7 @@
 import { expect } from "chai";
 import { ethers, upgrades } from "hardhat";
 import { HardhatEthersSigner } from "@nomicfoundation/hardhat-ethers/signers";
-import { FluentToken, FluentToken__factory, MockERC20__factory, MockERC20 } from "../../typechain-types";
+import { FluentToken, FluentToken__factory, MockERC20__factory, MockERC20 } from "../typechain-types";
 
 const ETH_1 = ethers.parseEther("1.0")
 const ADDR_0 = ethers.ZeroAddress;

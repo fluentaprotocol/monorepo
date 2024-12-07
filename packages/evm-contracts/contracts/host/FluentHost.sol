@@ -8,8 +8,8 @@ import {IERC20Errors} from "@openzeppelin/contracts/interfaces/draft-IERC6093.so
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import {IFluentProvider} from "../interfaces/collector/IFluentCollector.sol";
-import {IFluentCollectorFactory} from "../interfaces/collector/IFluentCollectorFactory.sol";
+import {IFluentProvider} from "../interfaces/provider/IFluentProvider.sol";
+import {IFluentProviderFactory} from "../interfaces/provider/IFluentProviderFactory.sol";
 import {IFluentToken} from "../interfaces/token/IFluentToken.sol";
 import {IFluentTokenFactory} from "../interfaces/token/IFluentTokenFactory.sol";
 import {ContextUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ContextUpgradeable.sol";
@@ -32,21 +32,22 @@ contract FluentHost is IFluentHost, UUPSUpgradeable, ContextUpgradeable {
     uint32 private constant MAX_DISCOUNT = 3_000; // 3%
 
     IFluentTokenFactory tokenFactory;
-    IFluentCollectorFactory collectorFactory;
+    IFluentProviderFactory private _providerFactory;
 
     error UnauthorizedAccount(address account);
-
     error ChannelDoesNotExist(bytes32 channel);
     error ChannelAlreadyExists(bytes32 channel);
 
-    mapping(bytes32 => bool) _channels;
+    // mapping(bytes32 => bool) _channels;
 
     // mapping(bytes32 channel => address collector) private _channels;
 
-    function initialize() external initializer {
+    function initialize(address providerFactory_) external initializer {
         baseFee = 8_000;
         minReward = 1_000;
         maxReward = 2_000;
+
+        _providerFactory = IFluentProviderFactory(providerFactory_);
 
         __Context_init();
         __UUPSUpgradeable_init();
@@ -76,6 +77,8 @@ contract FluentHost is IFluentHost, UUPSUpgradeable, ContextUpgradeable {
 
         uint64 started = uint64(block.timestamp);
         uint64 expired = started + 60;
+
+        // IFluentProvider(provider).bucketData(bucket);
 
         IFluentToken token;
         uint256 value;
@@ -109,10 +112,9 @@ contract FluentHost is IFluentHost, UUPSUpgradeable, ContextUpgradeable {
             revert UnauthorizedAccount(sender);
         }
 
-
         IFluentToken token;
 
-        token.transact(account, provider, 0);
+        // token.transact(account, provider, 0);
         channel.close();
     }
 
@@ -175,5 +177,9 @@ contract FluentHost is IFluentHost, UUPSUpgradeable, ContextUpgradeable {
 
     modifier onlyDAO() {
         _;
+    }
+
+    function providerFactory() external view override returns (address) {
+        return address(_providerFactory);
     }
 }

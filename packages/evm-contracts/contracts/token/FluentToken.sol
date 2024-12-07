@@ -12,7 +12,7 @@ import {ERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/
 import {ContextUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ContextUpgradeable.sol";
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {IFluentToken} from "../interfaces/token/IFluentToken.sol";
-import {IFluentProvider} from "../interfaces/collector/IFluentCollector.sol";
+import {IFluentProvider} from "../interfaces/provider/IFluentProvider.sol";
 import {IFluentHost} from "../interfaces/host/IFluentHost.sol";
 import {FluentHostable} from "../host/FluentHostable.sol";
 
