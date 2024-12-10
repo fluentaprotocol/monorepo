@@ -35,7 +35,7 @@ const config: HardhatUserConfig = {
     token: "ETH",
     tokenPrice: "4041.81" as any,
     includeIntrinsicGas: true,
-    excludeContracts: ["MockERC20", "MockDateTime"],
+    excludeContracts: ["MockERC20"],
   },
 };
 

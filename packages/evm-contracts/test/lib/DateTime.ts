@@ -2,6 +2,8 @@ import { expect } from "chai";
 import { ethers } from "hardhat";
 import { HardhatEthersSigner } from "@nomicfoundation/hardhat-ethers/signers";
 import { MockDateTime, MockDateTime__factory } from "../../typechain-types";
+import { JsonRpcBlock } from "hardhat-gas-reporter/dist/types";
+import { RpcBlockOutput } from "hardhat/internal/hardhat-network/provider/output";
 
 // base fee = gasprice
 
@@ -13,12 +15,18 @@ describe("DateTime", function () {
     let factory: MockDateTime__factory;
     let contract: MockDateTime;
 
+    let block: RpcBlockOutput;
+    let blockTimestamp: number;
+
     beforeEach(async function () {
         [account] = await ethers.getSigners();
         accountAddress = await account.getAddress();
 
         factory = await ethers.getContractFactory("MockDateTime", account);
         contract = await factory.deploy().then(x => x.connect(account));
+
+        block = await account.provider.getBlock('latest') as any
+        blockTimestamp = parseInt(block.timestamp)
     });
 
     describe("Timestamp", function () {
@@ -30,6 +38,17 @@ describe("DateTime", function () {
         it("# 1.2 Should correctly calculate timestamp from datetime", async function () {
             const timestamp = await contract.timestamp(2023, 10, 10, 12, 30, 45);
             expect(timestamp).to.be.eq(1696941045n);
+        });
+    });
+
+    describe("Month", function () {
+        it("# 1.1 Should correctly add month", async function () {
+            const date = new Date(blockTimestamp * 1e3)
+            const expired = new Date(date.setMonth(date.getMonth() + 1));
+            
+            const timestamp = await contract.addMonth(blockTimestamp);
+
+            expect(timestamp * 1000n).to.eq(Math.round(expired.valueOf()))
         });
     });
 

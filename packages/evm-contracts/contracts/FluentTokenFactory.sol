@@ -7,7 +7,7 @@ pragma solidity ^0.8.27;
 // import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
 // import {UUPSProxy} from "../upgradeability/UUPSProxy.sol";
-import {FluentHostable} from "../host/FluentHostable.sol";
+// import {FluentHostable} from "../host/FluentHostable.sol";
 // import {FluentToken} from "../token/FluentToken.sol";
 // import {IFluentHost} from "../interfaces/host/IFluentHost.sol";
 // import {IFluentToken} from "../interfaces/token/IFluentToken.sol";

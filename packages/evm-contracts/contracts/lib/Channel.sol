@@ -8,10 +8,15 @@ import "hardhat/console.sol";
 //  //   slots, this allows for gas optimization
 //  //
 //  //    ---------- ------------------ ------------------ ------------------
-//  //   | SLOT   1 | provider    20b  | expired      8b  | bucket       4b  |
+//  //   | SLOT   1 | provider    20b  | expired      8b  | endpoint     4b  |
 //  //    ---------- ------------------ ------------------ ------------------
 //  //   | SLOT   2 | account     20b  | updated      8b  |                  |
 //  //    ---------- ------------------ ------------------ ------------------
+ 
+// provider 32bytes
+// expired 8b
+// updated 8b
+// bucket 4b
 
 library Channel {
     using Storage for bytes32;

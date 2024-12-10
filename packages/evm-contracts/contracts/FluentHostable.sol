@@ -2,15 +2,14 @@
 pragma solidity ^0.8.4;
 
 import {ContextUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ContextUpgradeable.sol";
-import {IFluentHost} from "../interfaces/host/IFluentHost.sol";
-import {IFluentHostable} from "../interfaces/host/IFluentHostable.sol";
+import {IFluentHost} from "./interfaces/IFluentHost.sol";
 
 abstract contract FluentHostable is ContextUpgradeable {
     IFluentHost public host;
 
-    error UnauthorizedHost();
+    error UnauthorizedRouter();
 
-    function __FluentHostable_init(
+    function __FluentRoutable_init(
         IFluentHost host_
     ) internal onlyInitializing {
         host = host_;
@@ -18,9 +17,9 @@ abstract contract FluentHostable is ContextUpgradeable {
         __Context_init();
     }
 
-    modifier onlyHost() {
+    modifier onlyRouter() {
         if (_msgSender() != address(host)) {
-            revert UnauthorizedHost();
+            revert UnauthorizedRouter();
         }
 
         _;

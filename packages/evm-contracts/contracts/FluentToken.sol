@@ -11,10 +11,10 @@ import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/U
 import {ERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 import {ContextUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ContextUpgradeable.sol";
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import {IFluentToken} from "../interfaces/token/IFluentToken.sol";
-import {IFluentProvider} from "../interfaces/provider/IFluentProvider.sol";
-import {IFluentHost} from "../interfaces/host/IFluentHost.sol";
-import {FluentHostable} from "../host/FluentHostable.sol";
+import {IFluentToken} from "./interfaces/IFluentToken.sol";
+import {IFluentProvider} from "./interfaces/IFluentProvider.sol";
+import {IFluentHost} from "./interfaces/IFluentHost.sol";
+import {FluentHostable} from "./FluentHostable.sol";
 
 import "hardhat/console.sol";
 
@@ -41,7 +41,7 @@ contract FluentToken is
         __Context_init();
         __UUPSUpgradeable_init();
         __ERC20_init(name_, symbol_);
-        __FluentHostable_init(host_);
+        __FluentRoutable_init(host_);
     }
 
     /**
@@ -66,41 +66,13 @@ contract FluentToken is
     }
 
     /**
-     * @dev Allow the host to decrease the account buffer.
-     */
-    function decreaseBuffer(
-        address account,
-        uint256 value
-    ) external override onlyHost {
-        uint256 current = buffer[account];
-
-        if (current < value) {
-            revert InsufficientBuffer(account, current, value);
-        }
-
-        buffer[account] = current - value;
-        _mint(account, value);
-    }
-
-    /**
-     * @dev Allow the host to increase the account buffer.
-     */
-    function increaseBuffer(
-        address account,
-        uint256 value
-    ) external override onlyHost {
-        _burn(account, value);
-        buffer[account] += value;
-    }
-
-    /**
      * @dev Allow the host to process transactions
      */
     function transact(
         address from,
         address to,
         uint256 value
-    ) external onlyHost {
+    ) external onlyRouter {
         _update(from, to, value);
     }
 

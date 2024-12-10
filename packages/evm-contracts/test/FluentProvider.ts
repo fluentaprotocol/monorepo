@@ -1,76 +1,173 @@
-// import { expect } from "chai";
-// import { ethers, upgrades } from "hardhat";
-// import { HardhatEthersSigner } from "@nomicfoundation/hardhat-ethers/signers";
-// import { FluentProvider, FluentProvider__factory } from "../typechain-types";
+import { expect } from "chai";
+import { ethers, upgrades } from "hardhat";
+import { HardhatEthersSigner } from "@nomicfoundation/hardhat-ethers/signers";
+import { FluentProvider, FluentProvider__factory } from "../typechain-types";
+import { Signer } from "./types";
+import { BucketStruct } from "../typechain-types/contracts/FluentProvider";
+import { provider, signers, abi } from './utils'
 
-// describe("FluentProvider", function () {
-//   //     const BYTES_RAND = ethers.hexlify(ethers.randomBytes(32));
-//   const HOST_ADDRESS = ethers.hexlify(ethers.randomBytes(20)).toLowerCase();
-//   const TOKEN_ADDRESS = ethers.hexlify(ethers.randomBytes(20)).toLowerCase();
+describe("FluentProvider", function () {
+    const ZERO_ADDRESSS = ethers.ZeroAddress;
+    const TOKEN_ADDRESS = ethers.hexlify(ethers.randomBytes(20)).toLowerCase();
 
-//   let validator: HardhatEthersSigner;
-//   let account: HardhatEthersSigner;
-//   let attacker: HardhatEthersSigner;
+    const BUCKETS: BucketStruct[] = [{
+        token: TOKEN_ADDRESS,
+        freeTrial: 2n,
+        interval: 32n,
+        amount: 32n
+    }]
 
-//   let factory: FluentProvider__factory;
-//   let collector: FluentProvider;
+    let dao: Signer;
+    let account: Signer;
+    let account2: Signer;
+    let attacker: Signer;
 
-//   let validatorAddress: string;
-//   let accountAddress: string;
-//   let attackerAddress: string;
+    let factory: FluentProvider__factory;
+    let contract: FluentProvider;
+    let contractAddress: string;
 
-//   beforeEach(async function () {
-//     [validator, account, attacker] = await ethers.getSigners();
+    let providerId: string;
 
-//     validatorAddress = await validator.getAddress();
-//     accountAddress = await account.getAddress();
-//     attackerAddress = await attacker.getAddress();
+    beforeEach(async function () {
+        [dao, account, account2, attacker] = await signers.getSigners();
 
-//     factory = await ethers.getContractFactory("FluentProvider", validator);
-//     collector = (await upgrades
-//       .deployProxy(factory, [accountAddress, HOST_ADDRESS], {
-//         kind: "uups",
-//         redeployImplementation: "always",
-//       })
-//       .then((x) => x.connect(account))) as unknown as FluentProvider;
-//   });
+        factory = await ethers.getContractFactory("FluentProvider", dao.signer);
+        contract = await upgrades.deployProxy(factory, {
+            kind: 'uups',
+            redeployImplementation: 'always'
+        }).then(x => x.connect(account.signer)) as FluentProvider;
+        contractAddress = await contract.getAddress()
 
-//   describe("Initialization", function () {
-//     it("# 1.1 Should set the correct host address", async function () {
-//       let host = await collector.host();
-//       expect(host.toLowerCase()).to.eq(HOST_ADDRESS);
-//     });
+        await contract.openProvider(provider.validName, BUCKETS);
 
-//     it("# 1.2 Should set the correct owner address", async function () {
-//       expect(await collector.owner()).to.eq(accountAddress);
-//     });
+        providerId = ethers.keccak256(abi.encode(["address", "string"], [account.address, provider.validName]))
+    });
 
-//     // it("# 1.3 Should set the correct factory address", async function () {
-//     //     let host = await collector.factory();
-//     //     expect(host.toLowerCase()).to.eq(ADDR_RAND_2)
-//     // });
-//   });
+    describe("Initialization", function () {
+        it("# 1.1 Should correctly set provider data", async function () {
+            let data = await contract.getFunction('provider').staticCall(providerId);
 
-//   describe("Tiers", function () {
-//     it("# 2.1 Should allow owner to create a tier", async function () {
-//       await collector.createTier(TOKEN_ADDRESS, 100n);
-//       //   expect(host.toLowerCase()).to.eq(HOST_ADDRESS);
-//     });
+            expect(data.name).to.eq(provider.validName)
+            expect(data.owner).to.eq(account.address)
+        });
 
-//     it("# 2.1 Should revert if non-owner tries to create a tier", async function () {
-//       await expect(
-//         collector.connect(attacker).createTier(TOKEN_ADDRESS, 1n)
-//       ).to.revertedWith("UnauthorizedOwner");
-//       //   expect(host.toLowerCase()).to.eq(HOST_ADDRESS);
-//     });
+        it("# 1.2 Should revert with empty buckets", async function () {
+            await expect(contract.openProvider(provider.validName, [])).to.be.revertedWithCustomError(contract, "ProviderBucketsInvalid");
+        });
 
-//     // it("# 2.2 Should set the correct owner address", async function () {
-//     //   expect(await collector.owner()).to.eq(accountAddress);
-//     // });
+        it("# 1.3 Should revert with invalid name", async function () {
+            await expect(contract.openProvider(provider.invalidName, BUCKETS)).to.be.revertedWithCustomError(contract, "ProviderNameInvalid");
+            await expect(contract.openProvider("", BUCKETS)).to.be.revertedWithCustomError(contract, "ProviderNameInvalid");
+        });
 
-//     // it("# 1.3 Should set the correct factory address", async function () {
-//     //     let host = await collector.factory();
-//     //     expect(host.toLowerCase()).to.eq(ADDR_RAND_2)
-//     // });
-//   });
-// });
+        it("# 1.4 Should revert if already exists", async function () {
+            await expect(contract.openProvider(provider.validName, BUCKETS)).to.be.revertedWithCustomError(contract, "ProviderAlreadyInitialized");
+        });
+    });
+
+    describe("Termination", function () {
+        it("# 2.1 Should allow account to close a provider", async function () {
+            await expect(contract.closeProvider(providerId)).to.not.be.reverted;
+        });
+
+        it("# 2.2 Should revert if account is not the owner", async function () {
+            await expect(contract.connect(attacker.signer).closeProvider(providerId))
+                .to.be.revertedWithCustomError(contract, "ProviderUnauthorizedAccount").withArgs(attacker.address);
+        });
+
+        it("# 2.3 Should revert if provider does not exist", async function () {
+            let random = ethers.hexlify(ethers.randomBytes(32));
+
+            await expect(contract.closeProvider(random))
+                .to.be.revertedWithCustomError(contract, "ProviderNotInitialized");
+        });
+    });
+
+    describe("Ownership", function () {
+        it("# 3.1 Should allow account to transfer ownership of provider", async function () {
+            await expect(contract.transferProvider(providerId, account2.address)).to.not.be.reverted;
+
+            const updated = await contract.getFunction('provider').staticCall(providerId).then(x => x.owner)
+            expect(updated).to.eq(account2.address)
+        });
+
+        it("# 3.2 Should revert transfer if new account is ZeroAddress", async function () {
+            await expect(contract.transferProvider(providerId, ZERO_ADDRESSS))
+                .to.be.revertedWithCustomError(contract, "ProviderInvalidAccount").withArgs(ZERO_ADDRESSS);
+        });
+
+        it("# 3.3 Should revert transfer if new account equals old account", async function () {
+            await expect(contract.transferProvider(providerId, account.address))
+                .to.be.revertedWithCustomError(contract, "ProviderInvalidAccount").withArgs(account.address);
+        });
+
+        it("# 3.4 Should revert transfer if called from non-owner address", async function () {
+            await expect(contract.connect(attacker.signer).transferProvider(providerId, account2.address))
+                .to.be.revertedWithCustomError(contract, "ProviderUnauthorizedAccount").withArgs(attacker.address);
+        });
+
+        it("# 3.5 Should revert if provider does not exist", async function () {
+            let random = ethers.hexlify(ethers.randomBytes(32));
+
+            await expect(contract.transferProvider(random, account2.address))
+                .to.be.revertedWithCustomError(contract, "ProviderNotInitialized");
+        });
+    });
+
+    describe("Buckets", function () {
+        const name = "Basic";
+        const interval = 48n * 60n * 60n;
+
+        describe("Add", function () {
+            it("# 4.1.1 Should allow account to create a bucket", async function () {
+                //         await expect(contract.addBucket(provider, interval, TOKEN_ADDRESS, 2n)).to.not.be.reverted
+            });
+
+            it("# 4.1.2 Should revert if attacker attempts to create a bucket", async function () {
+                //         await expect(contract.connect(attacker.signer).addBucket(provider, name, interval))
+                //             .to.be.revertedWithCustomError(contract, "ProviderUnauthorizedAccount").withArgs(attacker.address)
+            });
+
+            it("# 4.1.3 Should revert if provider does not exist", async function () {
+                //         let random = ethers.hexlify(ethers.randomBytes(32));
+
+                //         await expect(contract.addBucket(random, name, interval))
+                //             .to.be.revertedWithCustomError(contract, "ProviderNotInitialized");
+                //     });
+            })
+
+        });
+
+        describe("Remove", function () {
+            it("# 4.2.1 Should allow account to create bucket", async function () {
+                //         // await expect(contract.addBucket(provider, name, interval)).to.not.be.reverted
+            });
+
+            it("# 4.2.2 Should revert if attacker attempts to create bucket", async function () {
+                //         // await expect(contract.connect(attacker.signer).addBucket(provider, name, interval))
+                //         //     .to.be.revertedWithCustomError(contract, "ProviderUnauthorizedAccount").withArgs(attacker.address)
+            });
+
+            it("# 4.2.3 Should revert if provider does not exist", async function () {
+                //         // let random = ethers.hexlify(ethers.randomBytes(32));
+
+                //         // await expect(contract.addBucket(random, name, interval))
+                //         //     .to.be.revertedWithCustomError(contract, "ProviderNotInitialized");
+            });
+        })
+
+        describe("Modify", function () {
+            it("# 4.3.1 Should allow account to create bucket", async function () {
+
+            });
+
+            it("# 4.3.2 Should allow account to modify a bucket", async function () {
+
+            });
+
+            it("# 4.3.3 Should revert if provider does not exist", async function () {
+
+            });
+        })
+    });
+});
