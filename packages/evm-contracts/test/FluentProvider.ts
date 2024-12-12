@@ -12,7 +12,6 @@ describe("FluentProvider", function () {
 
     const BUCKETS: BucketStruct[] = [{
         token: TOKEN_ADDRESS,
-        freeTrial: 2n,
         interval: 32n,
         amount: 32n
     }]
@@ -45,7 +44,7 @@ describe("FluentProvider", function () {
 
     describe("Initialization", function () {
         it("# 1.1 Should correctly set provider data", async function () {
-            let data = await contract.getFunction('provider').staticCall(providerId);
+            let data = await contract.getProvider(providerId)
 
             expect(data.name).to.eq(provider.validName)
             expect(data.owner).to.eq(account.address)
@@ -87,7 +86,7 @@ describe("FluentProvider", function () {
         it("# 3.1 Should allow account to transfer ownership of provider", async function () {
             await expect(contract.transferProvider(providerId, account2.address)).to.not.be.reverted;
 
-            const updated = await contract.getFunction('provider').staticCall(providerId).then(x => x.owner)
+            const updated = await contract.getProvider(providerId).then(x => x.owner)
             expect(updated).to.eq(account2.address)
         });
 

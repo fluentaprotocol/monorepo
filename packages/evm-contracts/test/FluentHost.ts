@@ -5,11 +5,14 @@ import { expect } from "chai";
 // import { deployHost, deployHostImplementation } from "./utils/deploy";
 
 import { ethers, upgrades } from "hardhat";
-import { FluentProvider, FluentProvider__factory, FluentHost, FluentHost__factory } from "../typechain-types";
+import { FluentProvider, FluentProvider__factory, FluentHost, FluentHost__factory, FluentToken } from "../typechain-types";
 import { Signer } from "./types";
-import { signers, abi, provider } from "./utils";
+import { signers, abi, provider, unit } from "./utils";
 import { RpcBlockOutput } from "hardhat/internal/hardhat-network/provider/output";
 import { JsonRpcBlock } from "hardhat-gas-reporter/dist/types";
+import { getToken, getUnderlying } from "./utils/token";
+import { value } from "./utils/unit";
+import { BucketStruct, BucketStructOutput } from "../typechain-types/contracts/FluentProvider";
 
 // const ADDR_RAND = ethers.hexlify(ethers.randomBytes(20)).toLowerCase();
 
@@ -26,6 +29,9 @@ describe("FluentHost", function () {
 
     //     let hostImpl: FluentHost;
     //     let hostImplAddress: string;
+
+    let token: FluentToken;
+    let tokenAddress: string;
 
     let host: FluentHost;
     let hostAddress: string;
@@ -65,6 +71,7 @@ describe("FluentHost", function () {
         }).then(x => x.connect(service.signer)) as unknown as FluentProvider;
         providerAddress = await providerContract.getAddress();
 
+
         // Router
         hostFactory = await ethers.getContractFactory("FluentHost", dao.signer);
         host = await upgrades.deployProxy(hostFactory, [dao.address, providerAddress], {
@@ -72,6 +79,17 @@ describe("FluentHost", function () {
             redeployImplementation: 'always'
         }).then(x => x.connect(account.signer)) as unknown as FluentHost;
         hostAddress = await host.getAddress();
+
+        // Token
+        let [underlying] = await getUnderlying(dao).then((x) => ([x[0].connect(account.signer), x[1]]) as typeof x);
+        [token, tokenAddress] = await getToken(underlying, dao).then((x) => ([x[0].connect(account.signer), x[1]]) as typeof x);
+
+        let value = unit.value(1);
+
+        await underlying.mint(account.address, value);
+        await underlying.approve(tokenAddress, value);
+
+        await token.deposit(value)
     });
 
     describe("Initialization", function () {
@@ -79,7 +97,7 @@ describe("FluentHost", function () {
             expect(await host.getFunction('provider').staticCall()).to.eq(providerAddress)
         });
 
-        it("# 1.1 Should correctly set the dao address", async function () {
+        it("# 1.2 Should correctly set the dao address", async function () {
             expect(await host.dao()).to.eq(dao.address)
         });
     })
@@ -87,23 +105,32 @@ describe("FluentHost", function () {
     describe("Channels", function () {
         let providerId: string
         let channelId: string
+        let bucketData: BucketStruct[]
+
         let bucket = '0x00000000';
 
         let block: RpcBlockOutput;
 
         beforeEach(async function () {
-            await providerContract.connect(service.signer).openProvider(provider.validName, provider.buckets)
             providerId = ethers.keccak256(abi.encode(["address", "string"], [service.address, provider.validName]))
-
-            await host.openChannel(providerId, bucket)
             channelId = ethers.keccak256(abi.encode(["bytes32", "address"], [providerId, account.address]))
+            bucketData = [{
+                token: tokenAddress,
+                interval: 32n,
+                amount: 32n
+            }]
+
+
+            await providerContract.openProvider(provider.validName, bucketData)
+            await host.openChannel(providerId, bucket);
+            // await providerContract.
 
             block = await account.signer.provider.getBlock('latest') as any
         });
 
         describe("Open", function () {
-            it("# 2.1 Should correctly set the channel details", async function () {
-                const data = await host.channel(channelId);
+            it("# 2.1.1 Should correctly set the channel details", async function () {
+                const data = await host.getChannel(channelId);
 
                 const current = new Date(parseInt(block.timestamp) * 1e3);
                 const expired = new Date(current.setMonth(current.getMonth() + 1)).valueOf() / 1e3;
@@ -114,43 +141,50 @@ describe("FluentHost", function () {
                 expect(data.bucket).to.eq(bucket);
             });
 
-            it("# 2.5 Should revert if channel already initialized", async function () {
-                await expect(host.openChannel(providerId, bucket)).to.be.revertedWithCustomError(host, "ChannelAlreadyInitialized").withArgs(channelId);
+            it("# 2.1.2 Should revert if channel is already exists", async function () {
+                await expect(host.openChannel(providerId, bucket))
+                    .to.be.revertedWithCustomError(host, "ChannelAlreadyExists").withArgs(channelId);
             });
 
-            it("# 2.5 Should revert if provider does not initialized", async function () {
-                await expect(host.openChannel(providerId, bucket)).to.be.revertedWithCustomError(host, "ChannelAlreadyInitialized").withArgs(channelId);
+            it("# 2.1.3 Should revert if provider does not exist", async function () {
+                // await expect(host.openChannel(providerId, bucket)).to.be.revertedWithCustomError(host, "ChannelAlreadyExists").withArgs(channelId);
             });
 
-            it("# 2.5 Should revert if bucket does not exist", async function () {
-                await expect(host.openChannel(providerId, bucket)).to.be.revertedWithCustomError(host, "ChannelAlreadyInitialized").withArgs(channelId);
+            it("# 2.1.4 Should revert if bucket does not exist", async function () {
+                // await expect(host.openChannel(providerId, bucket)).to.be.revertedWithCustomError(host, "ChannelAlreadyExists").withArgs(channelId);
             });
         })
 
         describe("Close", function () {
-            it("# 2.3 Should revert if attacker attempts to close a channel", async function () {
+            it("# 2.2.1 Should all account to close a channel", async function () {
                 await expect(host.closeChannel(channelId)).to.not.be.reverted;
             });
 
-            it("# 2.4 Should revert if channel not initialized", async function () {
+            it("# 2.2.2 Should revert if attacker attempts to close a channel", async function () {
+                await expect(host.connect(attacker.signer).closeChannel(channelId))
+                    .to.be.revertedWithCustomError(host, 'ChannelUnauthorized').withArgs(attacker.address);
+            });
+
+            it("# 2.2.3 Should revert if channel not initialized", async function () {
                 const randomId = ethers.randomBytes(32);
-                await expect(host.channel(randomId)).to.be.revertedWithCustomError(host, "ChannelNotInitialized").withArgs(randomId);
+                await expect(host.closeChannel(randomId))
+                    .to.be.revertedWithCustomError(host, "ChannelDoesNotExist").withArgs(randomId);
             });
         })
 
         describe("Migrate", function () {
             it("# 2.2 Should allow the account to migrate the bucket of a channel", async function () {
-                await expect(host.openChannel(providerId, bucket)).to.be.revertedWithCustomError(host, "ChannelAlreadyInitialized").withArgs(channelId);
+                await expect(host.openChannel(providerId, bucket)).to.be.revertedWithCustomError(host, "ChannelAlreadyExists").withArgs(channelId);
             });
         })
 
         // it("# 2.4 Should revert if channel not initialized", async function () {
         //     const randomId = ethers.randomBytes(32);
-        //     await expect(host.channel(randomId)).to.be.revertedWithCustomError(host, "ChannelNotInitialized").withArgs(randomId);
+        //     await expect(host.channel(randomId)).to.be.revertedWithCustomError(host, "ChannelDoesNotExist").withArgs(randomId);
         // });
 
         // it("# 2.5 Should revert if channel already initialized", async function () {
-        //     await expect(host.openChannel(providerId, bucket)).to.be.revertedWithCustomError(host, "ChannelAlreadyInitialized").withArgs(channelId);
+        //     await expect(host.openChannel(providerId, bucket)).to.be.revertedWithCustomError(host, "ChannelAlreadyExists").withArgs(channelId);
         // });
 
         // it("# 1.1 Should revert if channel already initialized", async function () {

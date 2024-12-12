@@ -13,16 +13,18 @@ import "hardhat/console.sol";
 //  //   | SLOT   2 | account     20b  | updated      8b  |                  |
 //  //    ---------- ------------------ ------------------ ------------------
 
-// provider 32bytes
-// expired 8b
-// updated 8b
-// bucket 4b
+// bytes32 provider 
+// bytes20 account
+// bytes4 bucket
+// uint64 updated
+// uint64 expired
+// uint64 started
 
 struct Channel {
     bytes32 provider;
     address account;
-    bytes4 bucket;
     uint64 expired;
+    bytes4 bucket;
 }
 
 library ChannelUtils {
@@ -55,7 +57,14 @@ library ChannelUtils {
         delete self.bucket;
     }
 
-    function process(Channel storage self) internal {}
+    function process(Channel storage self) internal {
+        // IFluentToken(bucket.token).transact(
+        //     sender,
+        //     recipient,
+        //     bucket.amount - reward
+        // );
+
+    }
 
     function initialized(Channel storage self) internal view returns (bool) {
         return

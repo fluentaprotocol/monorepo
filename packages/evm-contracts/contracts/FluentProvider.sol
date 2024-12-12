@@ -20,7 +20,11 @@ import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Ini
 
 import "hardhat/console.sol";
 
-contract FluentProvider is ContextUpgradeable, UUPSUpgradeable {
+contract FluentProvider is
+    IFluentProvider,
+    ContextUpgradeable,
+    UUPSUpgradeable
+{
     using String for *;
 
     using BucketUtils for Bucket;
@@ -29,11 +33,15 @@ contract FluentProvider is ContextUpgradeable, UUPSUpgradeable {
     error ProviderUnauthorizedAccount(address account);
     error ProviderInvalidAccount(address account);
 
-    error ProviderAlreadyInitialized();
-    error ProviderNotInitialized();
+    error ProviderAlreadyExists();
+    error ProviderDoesNotExist();
     error ProviderBucketsInvalid();
     error ProviderNameInvalid();
+    error BucketDoesNotExist();
 
+    event BucketCreated();
+
+    mapping(bytes32 id => mapping(bytes4 => Bucket)) private _buckets;
     mapping(bytes32 id => Provider) private _providers;
 
     function initialize() external initializer {
@@ -44,7 +52,7 @@ contract FluentProvider is ContextUpgradeable, UUPSUpgradeable {
     function openProvider(
         string calldata name,
         Bucket[] calldata buckets
-    ) external {
+    ) external returns (bytes32) {
         address account = _msgSender();
 
         // Validate inputs
@@ -56,116 +64,146 @@ contract FluentProvider is ContextUpgradeable, UUPSUpgradeable {
             revert ProviderNameInvalid();
         }
 
-        bytes32 identifier = ProviderUtils.identifier(name, account);
-        Provider storage $ = _providers[identifier];
+        bytes32 id = ProviderUtils.id(name, account);
+        Provider storage provider = _providers[id];
 
-        if ($.isActive()) {
-            revert ProviderAlreadyInitialized();
+        if (provider.exists()) {
+            revert ProviderAlreadyExists();
         }
 
-        $.open(account, name, buckets);
+        provider.open(account, name, buckets);
+
+        emit BucketCreated();
+
+        return id;
     }
 
-    function closeProvider(bytes32 identifier) external {
+    function closeProvider(bytes32 id) external {
         address account = _msgSender();
-        Provider storage $ = _providers[identifier];
+        Provider storage provider = _providers[id];
 
-        if (!$.isActive()) {
-            revert ProviderNotInitialized();
+        if (!provider.exists()) {
+            revert ProviderDoesNotExist();
         }
 
-        if (account != $.owner) {
+        if (account != provider.owner) {
             revert ProviderUnauthorizedAccount(account);
         }
 
-        $.close();
+        provider.close();
     }
 
-    function transferProvider(bytes32 identifier, address account) external {
+    function transferProvider(bytes32 id, address account) external {
         if (account == address(0)) {
             revert ProviderInvalidAccount(account);
         }
 
         address sender = _msgSender();
-        Provider storage $ = _providers[identifier];
+        Provider storage provider = _providers[id];
 
-        if (!$.isActive()) {
-            revert ProviderNotInitialized();
+        if (!provider.exists()) {
+            revert ProviderDoesNotExist();
         }
 
-        if (sender != $.owner) {
+        if (sender != provider.owner) {
             revert ProviderUnauthorizedAccount(sender);
         }
 
-        if (account == $.owner) {
+        if (account == provider.owner) {
             revert ProviderInvalidAccount(account);
         }
 
-        $.owner = account;
+        provider.owner = account;
     }
 
-    function provider(
-        bytes32 identifier
+    function getProvider(
+        bytes32 id
     ) external view returns (string memory name, address owner) {
-        Provider storage $ = _providers[identifier];
+        Provider storage provider = _providers[id];
 
-        if (!$.isActive()) {
-            revert ProviderNotInitialized();
+        if (!provider.exists()) {
+            revert ProviderDoesNotExist();
         }
 
-        name = $.name;
-        owner = $.owner;
+        name = provider.name;
+        owner = provider.owner;
     }
 
-    function createBucket(
-        bytes32 identifier,
-        uint64 /**interval*/,
-        address /**token*/,
-        uint256 /**amount*/
-    ) external {
+    function createBucket(bytes32 id, Bucket calldata data) external {
         address account = _msgSender();
-        Provider storage $ = _providers[identifier];
+        Provider storage provider = _providers[id];
 
-        if (!$.isActive()) {
-            revert ProviderNotInitialized();
+        if (!provider.exists()) {
+            revert ProviderDoesNotExist();
         }
 
-        if ($.owner != account) {
+        if (provider.owner != account) {
             revert ProviderUnauthorizedAccount(account);
         }
 
-        $.addBucket();
+        // provider.addBucket();
     }
 
-    function removeBucket(bytes32 identifier, bytes4 bucket) external {
+    function removeBucket(bytes32 id, bytes4 bucket) external {
         address account = _msgSender();
-        Provider storage $ = _providers[identifier];
+        Provider storage provider = _providers[id];
 
-        if (!$.isActive()) {
-            revert ProviderNotInitialized();
+        if (!provider.exists()) {
+            revert ProviderDoesNotExist();
         }
 
-        if ($.owner != account) {
+        if (provider.owner != account) {
             revert ProviderUnauthorizedAccount(account);
         }
 
-        $.removeBucket(bucket);
+        provider.removeBucket(bucket);
     }
 
-    function modifyBucket(bytes32 identifier, bytes4 bucket) external {
+    function modifyBucket(bytes32 id, bytes4 bucket) external {
         address account = _msgSender();
-        Provider storage $ = _providers[identifier];
+        Provider storage provider = _providers[id];
 
-        if (!$.isActive()) {
-            revert ProviderNotInitialized();
+        if (!provider.exists()) {
+            revert ProviderDoesNotExist();
         }
 
-        if ($.owner != account) {
+        if (provider.owner != account) {
             revert ProviderUnauthorizedAccount(account);
         }
 
-        $.modifyBucket(bucket);
+        provider.modifyBucket(bucket);
     }
+
+    function test(
+        bytes32 provider,
+        bytes4 bucket
+    ) external view returns (Bucket memory, address recipient) {
+        Provider storage provider_ = _providers[provider];
+
+        if (!provider_.exists()) {
+            revert ProviderDoesNotExist();
+        }
+
+        Bucket storage bucket_ = _buckets[provider][bucket];
+
+        if (!bucket_.exists()) {
+            revert BucketDoesNotExist();
+        }
+
+        return (bucket_, provider_.owner);
+    }
+
+    function getBucket(
+        bytes32 provider,
+        bytes4 bucket
+    ) external view override returns (Bucket memory) {
+        // Bucket storage $ = _buckets[provider][bucket];
+        // if (!$.exists()) {
+        //     revert("BucketDoesNotExist");
+        // }
+        // return $;
+    }
+
     function _authorizeUpgrade(
         address newImplementation
     ) internal virtual override {}

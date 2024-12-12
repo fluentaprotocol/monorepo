@@ -11,19 +11,13 @@ import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/U
 import {ERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 import {ContextUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ContextUpgradeable.sol";
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import {IFluentToken} from "./interfaces/IFluentToken.sol";
 import {IFluentProvider} from "./interfaces/IFluentProvider.sol";
 import {IFluentHost} from "./interfaces/IFluentHost.sol";
 import {FluentHostable} from "./FluentHostable.sol";
 
 import "hardhat/console.sol";
 
-contract FluentToken is
-    IFluentToken,
-    ERC20Upgradeable,
-    FluentHostable,
-    UUPSUpgradeable
-{
+contract FluentToken is ERC20Upgradeable, FluentHostable, UUPSUpgradeable {
     using SafeERC20 for IERC20Metadata;
 
     IERC20Metadata public underlying;
@@ -76,7 +70,7 @@ contract FluentToken is
         _update(from, to, value);
     }
 
-    function _authorizeUpgrade(
-        address newImplementation
-    ) internal virtual override {}
+    function _authorizeUpgrade(address newImplementation) internal virtual override {
+
+    }
 }
