@@ -19,13 +19,16 @@ struct Bucket {
 
 library BucketUtils {
     function id(Bucket calldata self) internal pure returns (bytes4 _id) {
-        assembly {
-            _id := keccak256(self, 0x40)
-        }
+        return bytes4(keccak256(abi.encode(self.token, self.interval)));
+
+        // assembly {
+        //     _id := keccak256(self, 0x40)
+        // }
     }
 
     function exists(Bucket storage self) internal view returns (bool) {
-        return self.amount != 0 && self.token != address(0) && self.interval == 0;
+        return
+            self.amount != 0 && self.token != address(0) && self.interval != 0;
     }
 
     // function from

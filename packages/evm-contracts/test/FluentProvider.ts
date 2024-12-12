@@ -13,7 +13,7 @@ describe("FluentProvider", function () {
     const BUCKETS: BucketStruct[] = [{
         token: TOKEN_ADDRESS,
         interval: 32n,
-        amount: 32n
+        amount: 32n,
     }]
 
     let dao: Signer;
@@ -44,7 +44,7 @@ describe("FluentProvider", function () {
 
     describe("Initialization", function () {
         it("# 1.1 Should correctly set provider data", async function () {
-            let data = await contract.getProvider(providerId)
+            let data = await contract.providerData(providerId)
 
             expect(data.name).to.eq(provider.validName)
             expect(data.owner).to.eq(account.address)
@@ -60,7 +60,7 @@ describe("FluentProvider", function () {
         });
 
         it("# 1.4 Should revert if already exists", async function () {
-            await expect(contract.openProvider(provider.validName, BUCKETS)).to.be.revertedWithCustomError(contract, "ProviderAlreadyInitialized");
+            await expect(contract.openProvider(provider.validName, BUCKETS)).to.be.revertedWithCustomError(contract, "ProviderAlreadyExists");
         });
     });
 
@@ -78,7 +78,7 @@ describe("FluentProvider", function () {
             let random = ethers.hexlify(ethers.randomBytes(32));
 
             await expect(contract.closeProvider(random))
-                .to.be.revertedWithCustomError(contract, "ProviderNotInitialized");
+                .to.be.revertedWithCustomError(contract, "ProviderDoesNotExist");
         });
     });
 
@@ -86,7 +86,7 @@ describe("FluentProvider", function () {
         it("# 3.1 Should allow account to transfer ownership of provider", async function () {
             await expect(contract.transferProvider(providerId, account2.address)).to.not.be.reverted;
 
-            const updated = await contract.getProvider(providerId).then(x => x.owner)
+            const updated = await contract.providerData(providerId).then(x => x.owner)
             expect(updated).to.eq(account2.address)
         });
 
@@ -109,7 +109,7 @@ describe("FluentProvider", function () {
             let random = ethers.hexlify(ethers.randomBytes(32));
 
             await expect(contract.transferProvider(random, account2.address))
-                .to.be.revertedWithCustomError(contract, "ProviderNotInitialized");
+                .to.be.revertedWithCustomError(contract, "ProviderDoesNotExist");
         });
     });
 
@@ -131,7 +131,7 @@ describe("FluentProvider", function () {
                 //         let random = ethers.hexlify(ethers.randomBytes(32));
 
                 //         await expect(contract.addBucket(random, name, interval))
-                //             .to.be.revertedWithCustomError(contract, "ProviderNotInitialized");
+                //             .to.be.revertedWithCustomError(contract, "ProviderDoesNotExist");
                 //     });
             })
 
@@ -151,7 +151,7 @@ describe("FluentProvider", function () {
                 //         // let random = ethers.hexlify(ethers.randomBytes(32));
 
                 //         // await expect(contract.addBucket(random, name, interval))
-                //         //     .to.be.revertedWithCustomError(contract, "ProviderNotInitialized");
+                //         //     .to.be.revertedWithCustomError(contract, "ProviderDoesNotExist");
             });
         })
 

@@ -66,7 +66,7 @@ library ChannelUtils {
 
     }
 
-    function initialized(Channel storage self) internal view returns (bool) {
+    function exists(Channel storage self) internal view returns (bool) {
         return
             self.provider != bytes32(0) ||
             self.account != address(0) ||

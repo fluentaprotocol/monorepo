@@ -5,6 +5,6 @@ export const validName = "StackExchange";
 export const invalidName = "Harmonic Convergence Data Exchange Hub";
 export const buckets: BucketStruct[] = [{
     token: ethers.hexlify(ethers.randomBytes(20)).toLowerCase(),
-    interval: 32n,
-    amount: 32n
+    interval: 1n,
+    amount: 32n,
 }]

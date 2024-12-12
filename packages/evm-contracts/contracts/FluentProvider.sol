@@ -6,6 +6,7 @@ import {IFluentToken} from "./interfaces/IFluentToken.sol";
 import {Bucket, BucketUtils} from "./libraries/Bucket.sol";
 import {IFluentProvider} from "./interfaces/IFluentProvider.sol";
 import {Provider, ProviderUtils} from "./libraries/Provider.sol";
+import {BucketCollection, CollectionUtils} from "./libraries/Collection.sol";
 
 import {Context} from "@openzeppelin/contracts/utils/Context.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -29,6 +30,7 @@ contract FluentProvider is
 
     using BucketUtils for Bucket;
     using ProviderUtils for Provider;
+    using CollectionUtils for BucketCollection;
 
     error ProviderUnauthorizedAccount(address account);
     error ProviderInvalidAccount(address account);
@@ -39,9 +41,7 @@ contract FluentProvider is
     error ProviderNameInvalid();
     error BucketDoesNotExist();
 
-    event BucketCreated();
-
-    mapping(bytes32 id => mapping(bytes4 => Bucket)) private _buckets;
+    // mapping(bytes32 id => mapping(bytes4 => Bucket)) private _buckets;
     mapping(bytes32 id => Provider) private _providers;
 
     function initialize() external initializer {
@@ -72,8 +72,6 @@ contract FluentProvider is
         }
 
         provider.open(account, name, buckets);
-
-        emit BucketCreated();
 
         return id;
     }
@@ -116,7 +114,7 @@ contract FluentProvider is
         provider.owner = account;
     }
 
-    function getProvider(
+    function providerData(
         bytes32 id
     ) external view returns (string memory name, address owner) {
         Provider storage provider = _providers[id];
@@ -127,6 +125,12 @@ contract FluentProvider is
 
         name = provider.name;
         owner = provider.owner;
+    }
+
+    function providerBuckets(
+        bytes32 id
+    ) external view returns (bytes4[] memory) {
+        return _providers[id].buckets.ids;
     }
 
     function createBucket(bytes32 id, Bucket calldata data) external {
@@ -174,7 +178,7 @@ contract FluentProvider is
         provider.modifyBucket(bucket);
     }
 
-    function test(
+    function bucketData(
         bytes32 provider,
         bytes4 bucket
     ) external view returns (Bucket memory, address recipient) {
@@ -184,24 +188,13 @@ contract FluentProvider is
             revert ProviderDoesNotExist();
         }
 
-        Bucket storage bucket_ = _buckets[provider][bucket];
+        Bucket storage bucket_ = provider_.buckets.get(bucket);
 
-        if (!bucket_.exists()) {
-            revert BucketDoesNotExist();
-        }
+        // if (!bucket_.exists()) {
+        //     revert BucketDoesNotExist();
+        // }
 
         return (bucket_, provider_.owner);
-    }
-
-    function getBucket(
-        bytes32 provider,
-        bytes4 bucket
-    ) external view override returns (Bucket memory) {
-        // Bucket storage $ = _buckets[provider][bucket];
-        // if (!$.exists()) {
-        //     revert("BucketDoesNotExist");
-        // }
-        // return $;
     }
 
     function _authorizeUpgrade(

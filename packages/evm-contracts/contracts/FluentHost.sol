@@ -63,7 +63,7 @@ contract FluentHost is IFluentHost, UUPSUpgradeable, ContextUpgradeable {
     function getChannel(bytes32 id) external view returns (Channel memory) {
         Channel storage channel = _channels[id];
 
-        if (!channel.initialized()) {
+        if (!channel.exists()) {
             revert ChannelDoesNotExist(id);
         }
 
@@ -79,18 +79,18 @@ contract FluentHost is IFluentHost, UUPSUpgradeable, ContextUpgradeable {
 
         Channel storage channel = _channels[id];
 
-        if (channel.initialized()) {
+        if (channel.exists()) {
             revert ChannelAlreadyExists(id);
         }
 
-        (Bucket memory bucket, address recipient) = provider.test(
+        (Bucket memory bucket, address recipient) = provider.bucketData(
             provider_,
             bucket_
         );
 
         uint64 expired = uint64(DateTime.addMonths(block.timestamp, 1));
 
-        IFluentToken(bucket.token).transact(account, recipient, 0);
+        IFluentToken(bucket.token).transact(account, recipient, bucket.amount);
         channel.open(provider_, account, expired, bucket_);
 
         return id;
@@ -100,7 +100,7 @@ contract FluentHost is IFluentHost, UUPSUpgradeable, ContextUpgradeable {
         address account = _msgSender();
         Channel storage channel = _channels[id];
 
-        if (!channel.initialized()) {
+        if (!channel.exists()) {
             revert ChannelDoesNotExist(id);
         }
 
@@ -115,7 +115,7 @@ contract FluentHost is IFluentHost, UUPSUpgradeable, ContextUpgradeable {
         address sender = _msgSender();
         Channel storage channel = _channels[id];
 
-        if (!channel.initialized()) {
+        if (!channel.exists()) {
             revert ChannelDoesNotExist(id);
         }
 
@@ -126,7 +126,7 @@ contract FluentHost is IFluentHost, UUPSUpgradeable, ContextUpgradeable {
             revert("ChannelLocked");
         }
 
-        (Bucket memory bucket, address recipient) = provider.test(
+        (Bucket memory bucket, address recipient) = provider.bucketData(
             id,
             channel.bucket
         );

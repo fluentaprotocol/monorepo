@@ -5,12 +5,7 @@ import {IFluentToken} from "./IFluentToken.sol";
 import {Bucket} from "../libraries/Bucket.sol";
 
 interface IFluentProvider {
-    function getBucket(
-        bytes32 provider,
-        bytes4 bucket
-    ) external view returns (Bucket memory);
-
-    function test(
+    function bucketData(
         bytes32 provider,
         bytes4 bucket
     ) external returns (Bucket memory, address recipient);

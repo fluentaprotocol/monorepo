@@ -82,7 +82,7 @@ describe("FluentHost", function () {
 
         // Token
         let [underlying] = await getUnderlying(dao).then((x) => ([x[0].connect(account.signer), x[1]]) as typeof x);
-        [token, tokenAddress] = await getToken(underlying, dao).then((x) => ([x[0].connect(account.signer), x[1]]) as typeof x);
+        [token, tokenAddress] = await getToken(underlying, dao, hostAddress).then((x) => ([x[0].connect(account.signer), x[1]]) as typeof x);
 
         let value = unit.value(1);
 
@@ -105,25 +105,38 @@ describe("FluentHost", function () {
     describe("Channels", function () {
         let providerId: string
         let channelId: string
-        let bucketData: BucketStruct[]
+        let bucketId: string;
+        
+        let bucketData: BucketStruct
 
-        let bucket = '0x00000000';
 
         let block: RpcBlockOutput;
 
         beforeEach(async function () {
+            // let group = '0x00000001';
+            let interval = 1n;
+
             providerId = ethers.keccak256(abi.encode(["address", "string"], [service.address, provider.validName]))
             channelId = ethers.keccak256(abi.encode(["bytes32", "address"], [providerId, account.address]))
-            bucketData = [{
+            bucketId = `${ethers.keccak256(abi.encode(["address", "uint64"], [tokenAddress, interval]))}`.slice(0, 10);
+
+            bucketData = {
                 token: tokenAddress,
-                interval: 32n,
-                amount: 32n
-            }]
+                interval,
+                amount: 32n,
+            }
 
 
-            await providerContract.openProvider(provider.validName, bucketData)
-            await host.openChannel(providerId, bucket);
-            // await providerContract.
+            await providerContract.openProvider(provider.validName, [bucketData])
+            
+            // let ids = await providerContract.providerBuckets(providerId);
+            // console.log(ids, [bucketId])
+            
+            // console.log(bucketId);
+            // let data = await providerContract.bucketData(providerId, bucketId);
+            // console.log(data, bucketData)
+
+            await host.openChannel(providerId, bucketId);
 
             block = await account.signer.provider.getBlock('latest') as any
         });
@@ -138,11 +151,11 @@ describe("FluentHost", function () {
                 expect(data.provider).to.eq(providerId)
                 expect(data.account).to.eq(account.address)
                 expect(data.expired).to.eq(expired);
-                expect(data.bucket).to.eq(bucket);
+                expect(data.bucket).to.eq(bucketId);
             });
 
             it("# 2.1.2 Should revert if channel is already exists", async function () {
-                await expect(host.openChannel(providerId, bucket))
+                await expect(host.openChannel(providerId, bucketId))
                     .to.be.revertedWithCustomError(host, "ChannelAlreadyExists").withArgs(channelId);
             });
 
@@ -174,7 +187,7 @@ describe("FluentHost", function () {
 
         describe("Migrate", function () {
             it("# 2.2 Should allow the account to migrate the bucket of a channel", async function () {
-                await expect(host.openChannel(providerId, bucket)).to.be.revertedWithCustomError(host, "ChannelAlreadyExists").withArgs(channelId);
+                await expect(host.openChannel(providerId, bucketId)).to.be.revertedWithCustomError(host, "ChannelAlreadyExists").withArgs(channelId);
             });
         })
 
