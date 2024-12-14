@@ -13,6 +13,7 @@ import { JsonRpcBlock } from "hardhat-gas-reporter/dist/types";
 import { getToken, getUnderlying } from "./utils/token";
 import { value } from "./utils/unit";
 import { BucketStruct, BucketStructOutput } from "../typechain-types/contracts/FluentProvider";
+import { intervalSol } from "../typechain-types/contracts/libraries";
 
 // const ADDR_RAND = ethers.hexlify(ethers.randomBytes(20)).toLowerCase();
 
@@ -133,7 +134,7 @@ describe("FluentHost", function () {
 
         beforeEach(async function () {
             // let group = '0x00000001';
-            let interval = 1n;
+            let interval = 2;
 
             providerId = ethers.keccak256(abi.encode(["address", "string"], [service.address, provider.validName]))
             channelId = ethers.keccak256(abi.encode(["bytes32", "address"], [providerId, account.address]))

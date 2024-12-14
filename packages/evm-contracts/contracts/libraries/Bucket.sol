@@ -2,7 +2,7 @@
 pragma solidity ^0.8.4;
 
 import {IFluentToken} from "../interfaces/IFluentToken.sol";
-
+import {Interval} from './Interval.sol';
 // option
 // token
 // amount
@@ -14,7 +14,7 @@ import {IFluentToken} from "../interfaces/IFluentToken.sol";
 struct Bucket {
     uint256 amount;
     address token;
-    uint64 interval;
+    Interval interval;
 }
 
 library BucketUtils {
@@ -28,7 +28,7 @@ library BucketUtils {
 
     function exists(Bucket storage self) internal view returns (bool) {
         return
-            self.amount != 0 && self.token != address(0) && self.interval != 0;
+            self.amount != 0 && self.token != address(0);
     }
 
     // function from

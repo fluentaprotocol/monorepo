@@ -4,6 +4,7 @@ pragma solidity ^0.8.4;
 import {String} from "./libraries/String.sol";
 import {IFluentToken} from "./interfaces/IFluentToken.sol";
 import {Bucket, BucketUtils} from "./libraries/Bucket.sol";
+import {Interval} from "./libraries/Interval.sol";
 import {IFluentProvider} from "./interfaces/IFluentProvider.sol";
 import {Provider, ProviderUtils} from "./libraries/Provider.sol";
 import {BucketCollection, CollectionUtils} from "./libraries/Collection.sol";
@@ -181,7 +182,16 @@ contract FluentProvider is
     function bucketData(
         bytes32 provider,
         bytes4 bucket
-    ) external view returns (uint256 value, address token, address recipient) {
+    )
+        external
+        view
+        returns (
+            uint256 value,
+            address token,
+            address recipient,
+            Interval interval
+        )
+    {
         Provider storage provider_ = _providers[provider];
 
         if (!provider_.exists()) {
@@ -194,7 +204,12 @@ contract FluentProvider is
             revert BucketDoesNotExist();
         }
 
-        return (bucket_.amount, bucket_.token, provider_.owner);
+        return (
+            bucket_.amount,
+            bucket_.token,
+            provider_.owner,
+            bucket_.interval
+        );
     }
 
     function _authorizeUpgrade(

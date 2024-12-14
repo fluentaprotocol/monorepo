@@ -12,7 +12,7 @@ describe("FluentProvider", function () {
 
     const BUCKETS: BucketStruct[] = [{
         token: TOKEN_ADDRESS,
-        interval: 32n,
+        interval: 2,
         amount: 32n,
     }]
 

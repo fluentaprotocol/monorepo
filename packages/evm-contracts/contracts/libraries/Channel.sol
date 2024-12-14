@@ -6,7 +6,6 @@ import {DateTimeUtils} from "./DateTime.sol";
 import {IFluentProvider} from "../interfaces/IFluentProvider.sol";
 import {IFluentToken} from "../interfaces/IFluentToken.sol";
 
-
 import "hardhat/console.sol";
 
 struct Channel {
@@ -20,7 +19,6 @@ library ChannelUtils {
     using DateTimeUtils for *;
     using IntervalUtils for *;
 
-
     function open(
         Channel storage self,
         IFluentProvider provider,
@@ -29,12 +27,12 @@ library ChannelUtils {
         bytes4 bucketId,
         uint fee
     ) internal {
-        Interval interval;
-
-        (uint256 total, address token, address recipient) = provider.bucketData(
-            providerId,
-            bucketId
-        );
+        (
+            uint256 total,
+            address token,
+            address recipient,
+            Interval interval
+        ) = provider.bucketData(providerId, bucketId);
 
         (uint value, uint discounted) = _feeValue(total, fee, 0);
         IFluentToken(token).transact(account, recipient, value, discounted);
@@ -61,12 +59,12 @@ library ChannelUtils {
         uint256 maxReward,
         uint256 maxFee
     ) internal {
-        (uint256 total, address token, address recipient) = provider.bucketData(
-            self.provider,
-            self.bucket
-        );
-
-        Interval interval;
+        (
+            uint256 total,
+            address token,
+            address recipient,
+            Interval interval
+        ) = provider.bucketData(self.provider, self.bucket);
 
         uint256 reward;
         uint256 discount;
@@ -92,7 +90,7 @@ library ChannelUtils {
             fee
         );
 
-        self.expired =  interval.next(self.expired);
+        self.expired = interval.next(self.expired);
     }
 
     function exists(Channel storage self) internal view returns (bool) {
@@ -113,27 +111,6 @@ library ChannelUtils {
     function isExpired(Channel storage self) internal view returns (bool) {
         return block.timestamp < self.expired;
     }
-
-    // function _addInterval(
-    //     uint value,
-    //     uint interval
-    // ) private pure returns (uint) {
-    //     if (interval == 0) {
-    //         return uint64(value.addDays(1));
-    //         // DAILY
-    //     } else if (interval == 1) {
-    //         return uint64(value.addWeeks(1));
-    //         // WEEKLY
-    //     } else if (interval == 2) {
-    //         // MONTHLY
-    //         return uint64(value.addMonths(1));
-    //     } else if (interval == 3) {
-    //         // ANNUALLY
-    //         return uint64(value.addYears(1));
-    //     }
-
-    //     revert UnsupportedInterval(interval);
-    // }
 
     function _feeValue(
         uint256 total,
