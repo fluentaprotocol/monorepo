@@ -17,6 +17,8 @@ import { BucketStruct, BucketStructOutput } from "../typechain-types/contracts/F
 // const ADDR_RAND = ethers.hexlify(ethers.randomBytes(20)).toLowerCase();
 
 describe("FluentHost", function () {
+    const GRACE = 60 * 60 * 48;
+
     // const TOKEN_ADDRESS = ethers.hexlify(ethers.randomBytes(20)).toLowerCase();
 
     //     // const BUCKET = ethers.hexlify(ethers.randomBytes(32));
@@ -26,7 +28,11 @@ describe("FluentHost", function () {
     let account: Signer;
     let service: Signer;
     let attacker: Signer;
+    let processor: Signer;
 
+
+    let minReward: bigint;
+    let maxReward: bigint;
     //     let hostImpl: FluentHost;
     //     let hostImplAddress: string;
 
@@ -61,8 +67,11 @@ describe("FluentHost", function () {
 
 
     beforeEach(async function () {
-        [dao, service, account, attacker] = await signers.getSigners();
+        [dao, service, account, processor, attacker] = await signers.getSigners();
 
+        minReward = unit.value(1, 3)
+        maxReward = unit.value(2, 3)
+        
         // Provider
         providerFactory = await ethers.getContractFactory("FluentProvider", dao.signer);
         providerContract = await upgrades.deployProxy(providerFactory, [], {
@@ -70,11 +79,17 @@ describe("FluentHost", function () {
             redeployImplementation: 'always'
         }).then(x => x.connect(service.signer)) as unknown as FluentProvider;
         providerAddress = await providerContract.getAddress();
-
+        
 
         // Router
         hostFactory = await ethers.getContractFactory("FluentHost", dao.signer);
-        host = await upgrades.deployProxy(hostFactory, [dao.address, providerAddress], {
+        host = await upgrades.deployProxy(hostFactory, [
+            GRACE,
+            minReward,
+            maxReward,
+            dao.address,
+            providerAddress
+        ], {
             kind: 'uups',
             redeployImplementation: 'always'
         }).then(x => x.connect(account.signer)) as unknown as FluentHost;
@@ -84,12 +99,13 @@ describe("FluentHost", function () {
         let [underlying] = await getUnderlying(dao).then((x) => ([x[0].connect(account.signer), x[1]]) as typeof x);
         [token, tokenAddress] = await getToken(underlying, dao, hostAddress).then((x) => ([x[0].connect(account.signer), x[1]]) as typeof x);
 
+
         let value = unit.value(1);
 
         await underlying.mint(account.address, value);
         await underlying.approve(tokenAddress, value);
 
-        await token.deposit(value)
+        await token.depositFor(account.address, value)
     });
 
     describe("Initialization", function () {
@@ -97,16 +113,19 @@ describe("FluentHost", function () {
             expect(await host.getFunction('provider').staticCall()).to.eq(providerAddress)
         });
 
-        it("# 1.2 Should correctly set the dao address", async function () {
+        it("# 1.2 Should correctly set the intial values", async function () {
             expect(await host.dao()).to.eq(dao.address)
+            expect(await host.gracePeriod()).to.eq(GRACE)
+            expect(await host.minReward()).to.eq(minReward)
+            expect(await host.maxReward()).to.eq(maxReward)
         });
     })
 
     describe("Channels", function () {
         let providerId: string
         let channelId: string
+
         let bucketId: string;
-        
         let bucketData: BucketStruct
 
 
@@ -123,15 +142,14 @@ describe("FluentHost", function () {
             bucketData = {
                 token: tokenAddress,
                 interval,
-                amount: 32n,
+                amount: unit.value(10, 6),
             }
 
-
             await providerContract.openProvider(provider.validName, [bucketData])
-            
+
             // let ids = await providerContract.providerBuckets(providerId);
             // console.log(ids, [bucketId])
-            
+
             // console.log(bucketId);
             // let data = await providerContract.bucketData(providerId, bucketId);
             // console.log(data, bucketData)
@@ -186,8 +204,42 @@ describe("FluentHost", function () {
         })
 
         describe("Migrate", function () {
-            it("# 2.2 Should allow the account to migrate the bucket of a channel", async function () {
-                await expect(host.openChannel(providerId, bucketId)).to.be.revertedWithCustomError(host, "ChannelAlreadyExists").withArgs(channelId);
+            it("# 2.3.1 Should allow the account to migrate the bucket of a channel", async function () {
+                await expect(host.openChannel(providerId, bucketId))
+                    .to.be.revertedWithCustomError(host, "ChannelAlreadyExists").withArgs(channelId);
+            });
+        })
+
+        describe("Process", function () {
+            it("# 2.4.1 Should allow the channel to be processed", async function () {
+                const current = new Date(parseInt(block.timestamp) * 1e3);
+                const expired = new Date(current.setMonth(current.getMonth() + 1)).valueOf() / 1e3;
+
+                await ethers.provider.send("evm_setNextBlockTimestamp", [expired - (GRACE / 2)]);
+                await ethers.provider.send("evm_mine", []);
+
+
+                await expect(host.connect(processor.signer).processChannel(channelId))
+                    .to.not.be.reverted;
+            });
+
+            // it("# 2.4.2 Should correctly calculate reward", async function () {
+            //     const randomId = ethers.randomBytes(32);
+
+            //     await expect(host.connect(processor.signer).processChannel(randomId))
+            //         .to.be.revertedWithCustomError(host, "ChannelDoesNotExist").withArgs(randomId);
+            // });
+
+            it("# 2.4.2 Should revert if the channel does not exists", async function () {
+                const randomId = ethers.randomBytes(32);
+
+                await expect(host.connect(processor.signer).processChannel(randomId))
+                    .to.be.revertedWithCustomError(host, "ChannelDoesNotExist").withArgs(randomId);
+            });
+
+            it("# 2.4.3 Should revert if the channel is locked", async function () {
+                await expect(host.connect(processor.signer).processChannel(channelId))
+                    .to.be.revertedWithCustomError(host, "ChannelLocked").withArgs(channelId);
             });
         })
 

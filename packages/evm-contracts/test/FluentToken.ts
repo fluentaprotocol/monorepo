@@ -77,7 +77,7 @@ describe("FluentToken", function () {
         });
 
         it("# 2.1 Should allow deposit and mint tokens", async function () {
-            await token.connect(account).deposit(ETH_1);
+            await token.connect(account).depositFor(accountAddress, ETH_1);
 
             expect(await token.balanceOf(accountAddress)).to.equal(ETH_1);
             expect(await token.totalSupply()).to.equal(ETH_1);
@@ -86,25 +86,25 @@ describe("FluentToken", function () {
         it("# 2.2 Should revert on deposit with insufficient allowance", async function () {
             await underlying.connect(account).approve(tokenAddress, ETH_1 - 1n);
 
-            await expect(token.connect(account).deposit(ETH_1)).to.be.revertedWithCustomError(token, 'ERC20InsufficientAllowance')
+            await expect(token.connect(account).depositFor(accountAddress, ETH_1)).to.be.revertedWithCustomError(token, 'ERC20InsufficientAllowance')
         });
     });
 
     describe("Withdrawals", function () {
         beforeEach(async function () {
             await underlying.connect(account).approve(tokenAddress, ETH_1);
-            await token.connect(account).deposit(ETH_1);
+            await token.connect(account).depositFor(accountAddress, ETH_1);
         });
 
         it("# 3.1 Should allow withdrawal and burn tokens", async function () {
-            await token.connect(account).withdraw(ETH_1);
+            await token.connect(account).withdrawTo(accountAddress, ETH_1);
 
             expect(await token.balanceOf(accountAddress)).to.equal(0);
             expect(await underlying.balanceOf(accountAddress)).to.equal(ETH_1);
         });
 
         it("# 3.2 Should revert on withdrawal exceeding balance", async function () {
-            await expect(token.connect(account).withdraw(ETH_1 + 1n)).to.be.revertedWithCustomError(
+            await expect(token.connect(account).withdrawTo(accountAddress, ETH_1 + 1n)).to.be.revertedWithCustomError(
                 token,
                 "ERC20InsufficientBalance"
             ).withArgs(accountAddress, ETH_1, ETH_1 + 1n);
@@ -114,7 +114,7 @@ describe("FluentToken", function () {
     describe("Transfers", function () {
         beforeEach(async function () {
             await underlying.connect(account).approve(tokenAddress, ETH_1);
-            await token.connect(account).deposit(ETH_1);
+            await token.connect(account).depositFor(accountAddress, ETH_1);
         });
 
         it("# 4.1 Should allow token transfers", async function () {
@@ -135,24 +135,23 @@ describe("FluentToken", function () {
     });
 
     describe("Allowance and Approvals", function () {
-        it("# 5.1 Should set and use allowance for transferFrom", async function () {
+        this.beforeEach(async function () {
             await underlying.connect(account).approve(tokenAddress, ETH_1);
-            await token.connect(account).deposit(ETH_1);
-
+            await token.connect(account).depositFor(accountAddress, ETH_1);
+            
+        })
+        
+        it("# 5.1 Should set and use allowance for transferFrom", async function () {
             await token.connect(account).approve(attackerAddress, ETH_1);
-
             await token.connect(attacker).transferFrom(accountAddress, attackerAddress, ETH_1);
-
+            
             expect(await token.balanceOf(accountAddress)).to.equal(0);
             expect(await token.balanceOf(attackerAddress)).to.equal(ETH_1);
         });
-
+        
         it("# 5.2 Should revert transferFrom with insufficient allowance", async function () {
-            await underlying.connect(account).approve(tokenAddress, ETH_1);
-            await token.connect(account).deposit(ETH_1);
-
             await token.connect(account).approve(attackerAddress, ETH_1 - 1n);
-
+            
             await expect(
                 token.connect(attacker).transferFrom(accountAddress, attackerAddress, ETH_1)
             ).to.be.revertedWithCustomError(
@@ -166,13 +165,13 @@ describe("FluentToken", function () {
         beforeEach(async () => {
             await underlying.mint(account, ETH_1 * 3n);
             await underlying.connect(account).approve(tokenAddress, ETH_1 * 3n);
-            await token.connect(account).deposit(ETH_1 * 3n);
+            await token.connect(account).depositFor(accountAddress, ETH_1 * 3n);
         })
-        
+
         // it("# 6.1 Should revert transferFrom with insufficient allowance", async function () {
         //     // Process transaction
         //     await token.processTransaction(accountAddress, attackerAddress, ETH_1);
-      
+
         //     // Check balances
         //     expect(await token.balanceOf(accountAddress)).to.equal(0);
         //     expect(await token.balanceOf(attackerAddress)).to.equal(ETH_1 * 3n);

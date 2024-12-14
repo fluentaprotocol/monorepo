@@ -18,7 +18,8 @@ pragma solidity >=0.6.0 <0.9.0;
 // Enjoy. (c) BokkyPooBah / Bok Consulting Pty Ltd 2018-2019. The MIT Licence.
 // ----------------------------------------------------------------------------
 
-library DateTime {
+
+library DateTimeUtils {
     uint constant DAY = 24 * 60 * 60;
     uint constant HOUR = 60 * 60;
     uint constant MINUTE = 60;
@@ -150,6 +151,10 @@ library DateTime {
 
     function addDays(uint timestamp_, uint days_) internal pure returns (uint) {
         return timestamp_ + days_ * DAY;
+    }
+
+    function addWeeks(uint timestamp_, uint weeks_) internal pure returns (uint) {
+        return timestamp_ + (weeks_ * 7) * DAY;
     }
 
     function addHours(

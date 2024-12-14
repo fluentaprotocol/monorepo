@@ -9,20 +9,24 @@ import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {ERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
+import {ERC20WrapperUpgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20WrapperUpgradeable.sol";
 import {ContextUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ContextUpgradeable.sol";
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {IFluentProvider} from "./interfaces/IFluentProvider.sol";
 import {IFluentHost} from "./interfaces/IFluentHost.sol";
+import {IFluentToken} from "./interfaces/IFluentToken.sol";
 import {FluentHostable} from "./FluentHostable.sol";
 
 import "hardhat/console.sol";
 
-contract FluentToken is ERC20Upgradeable, FluentHostable, UUPSUpgradeable {
+contract FluentToken is
+    ERC20WrapperUpgradeable,
+    FluentHostable,
+    UUPSUpgradeable
+{
     using SafeERC20 for IERC20Metadata;
 
-    IERC20Metadata public underlying;
-
-    mapping(address => uint256) buffer;
+    // IERC20Metadata public underlying;
 
     function initialize(
         IFluentHost host_,
@@ -30,33 +34,11 @@ contract FluentToken is ERC20Upgradeable, FluentHostable, UUPSUpgradeable {
         string calldata name_,
         string calldata symbol_
     ) external initializer {
-        underlying = token_;
-
         __Context_init();
         __UUPSUpgradeable_init();
+        __ERC20Wrapper_init(token_);
         __ERC20_init(name_, symbol_);
         __FluentRoutable_init(host_);
-    }
-
-    /**
-     * @dev Allow a user to deposit, and wrap the underlying token
-     */
-    function deposit(uint256 value) external {
-        address sender = _msgSender();
-
-        SafeERC20.safeTransferFrom(underlying, sender, address(this), value);
-        _mint(sender, value);
-    }
-
-    /**
-     * @dev Allow a user to unwrap and withdraw the underlying token
-     */
-    function withdraw(uint256 value) external {
-        address account = _msgSender();
-
-        _burn(account, value);
-
-        SafeERC20.safeTransfer(underlying, account, value);
     }
 
     /**
@@ -65,12 +47,35 @@ contract FluentToken is ERC20Upgradeable, FluentHostable, UUPSUpgradeable {
     function transact(
         address from,
         address to,
-        uint256 value
+        uint256 value,
+        uint256 fee
     ) external onlyRouter {
+        _update(from, to, value - fee);
+        _burn(from, fee);
+    }
+
+    function transactFor(
+        address behalf,
+        address from,
+        address to,
+        uint256 value,
+        uint256 reward,
+        uint256 fee
+    ) external onlyRouter {
+        _update(from, behalf, reward);
         _update(from, to, value);
+
+        _burn(from, fee);
     }
 
-    function _authorizeUpgrade(address newImplementation) internal virtual override {
+    function totalFeed() external view returns (uint256) {
+        uint totalSupply = underlying().totalSupply();
+        uint balance = underlying().balanceOf(address(this));
 
+        return balance - totalSupply;
     }
+
+    function _authorizeUpgrade(
+        address newImplementation
+    ) internal virtual override {}
 }

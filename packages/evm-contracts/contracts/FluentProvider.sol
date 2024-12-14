@@ -181,7 +181,7 @@ contract FluentProvider is
     function bucketData(
         bytes32 provider,
         bytes4 bucket
-    ) external view returns (Bucket memory, address recipient) {
+    ) external view returns (uint256 value, address token, address recipient) {
         Provider storage provider_ = _providers[provider];
 
         if (!provider_.exists()) {
@@ -190,11 +190,11 @@ contract FluentProvider is
 
         Bucket storage bucket_ = provider_.buckets.get(bucket);
 
-        // if (!bucket_.exists()) {
-        //     revert BucketDoesNotExist();
-        // }
+        if (!bucket_.exists()) {
+            revert BucketDoesNotExist();
+        }
 
-        return (bucket_, provider_.owner);
+        return (bucket_.amount, bucket_.token, provider_.owner);
     }
 
     function _authorizeUpgrade(

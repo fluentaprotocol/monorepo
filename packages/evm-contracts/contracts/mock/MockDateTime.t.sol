@@ -2,7 +2,7 @@
 pragma solidity 0.8.27;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import {DateTime} from "../libraries/DateTime.sol";
+import {DateTimeUtils} from "../libraries/DateTime.sol";
 
 contract MockDateTime {
     function datestamp(
@@ -10,7 +10,7 @@ contract MockDateTime {
         uint month,
         uint day
     ) external pure returns (uint) {
-        return DateTime.timestamp(year, month, day);
+        return DateTimeUtils.timestamp(year, month, day);
     }
 
     function timestamp(
@@ -21,17 +21,17 @@ contract MockDateTime {
         uint minute,
         uint second
     ) external pure returns (uint) {
-        return DateTime.timestamp(year, month, day, hour, minute, second);
+        return DateTimeUtils.timestamp(year, month, day, hour, minute, second);
     }
 
     function date(
         uint timestamp_
     ) external pure returns (uint year, uint month, uint day) {
-        return DateTime.date(timestamp_);
+        return DateTimeUtils.date(timestamp_);
     }
 
     function addMonth(uint timestamp_) external pure returns (uint64) {
-        return uint64(DateTime.addMonths(timestamp_, 1));
+        return uint64(DateTimeUtils.addMonths(timestamp_, 1));
     }
 
     function datetime(
@@ -48,6 +48,6 @@ contract MockDateTime {
             uint second
         )
     {
-        return DateTime.datetime(timestamp_);
+        return DateTimeUtils.datetime(timestamp_);
     }
 }

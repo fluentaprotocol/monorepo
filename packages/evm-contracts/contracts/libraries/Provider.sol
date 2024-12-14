@@ -24,10 +24,6 @@ library ProviderUtils {
         return keccak256(abi.encode(account, name));
     }
 
-    // function id(Provider storage self) internal view returns (bytes32) {
-    //     return keccak256(abi.encode(self.owner, self.name));
-    // }
-
     function open(
         Provider storage self,
         address owner,

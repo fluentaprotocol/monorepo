@@ -8,5 +8,5 @@ interface IFluentProvider {
     function bucketData(
         bytes32 provider,
         bytes4 bucket
-    ) external returns (Bucket memory, address recipient);
+    ) external returns (uint256 value, address token, address recipient);
 }

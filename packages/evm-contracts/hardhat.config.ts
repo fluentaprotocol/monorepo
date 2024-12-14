@@ -14,26 +14,26 @@ const config: HardhatUserConfig = {
       },
       {
         version: "0.8.4",
-        settings: {
-          viaIR: true,
-          optimizer: {
-            enabled: true,
-            details: {
-              yulDetails: {
-                optimizerSteps: "u",
-              },
-            },
-          },
-        },
+        // settings: {
+        //   viaIR: true,
+        //   optimizer: {
+        //     enabled: true,
+        //     details: {
+        //       yulDetails: {
+        //         optimizerSteps: "u",
+        //       },
+        //     },
+        //   },
+        // },
       },
     ],
   },
   gasReporter: {
     L1: "ethereum",
-    gasPrice: 21,
+    gasPrice: 19.8,
     currency: "USD",
     token: "ETH",
-    tokenPrice: "4041.81" as any,
+    tokenPrice: "3886.29" as any,
     includeIntrinsicGas: true,
     excludeContracts: ["MockERC20"],
   },

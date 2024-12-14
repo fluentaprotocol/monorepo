@@ -5,7 +5,6 @@ import {IFluentDao} from "./interfaces/IFluentDao.sol";
 import {IFluentProvider} from "./interfaces/IFluentProvider.sol";
 import {Channel, ChannelUtils} from "./libraries/Channel.sol";
 import {Bucket, BucketUtils} from "./libraries/Bucket.sol";
-import {DateTime} from "./libraries/DateTime.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
@@ -16,13 +15,10 @@ import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IER
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {ContextUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ContextUpgradeable.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-// import {IFluentProviderFactory} from "../interfaces/provider/IFluentProviderFactory.sol";
 import {IFluentToken} from "./interfaces/IFluentToken.sol";
+import {IFluentHost} from "./interfaces/IFluentHost.sol";
 import {IFluentProvider} from "./interfaces/IFluentProvider.sol";
 import {IFluentTokenFactory} from "./interfaces/IFluentTokenFactory.sol";
-import {IFluentHost} from "./interfaces/IFluentHost.sol";
-// import {Storage} from "./lib/Storage.sol";
-// import {Channel} from "./lib/Channel.sol";
 
 import "hardhat/console.sol";
 
@@ -34,15 +30,20 @@ contract FluentHost is IFluentHost, UUPSUpgradeable, ContextUpgradeable {
     // uint32 private minReward;
     // uint32 private maxReward;
 
-    uint64 private constant PROCESS_PERIOD = 48 * 60 * 60; // 2 DAYS
-    uint32 private constant MAX_FEE = 8_000; // 8%
+    // uint64 private constant PROCESS_PERIOD = 48 * 60 * 60; // 2 DAYS
+    uint32 private constant FEE = 8_000; // 8%
     // uint32 private constant MAX_DISCOUNT = 3_000; // 3%
+
+    uint64 public gracePeriod;
+    uint256 public minReward;
+    uint256 public maxReward;
 
     IFluentDao public dao;
     IFluentProvider public provider;
     // IFluentTokenFactory tokenFactory;
     // IFluentProviderFactory private _providerFactory;
 
+    error ChannelLocked(bytes32 channel);
     error ChannelUnauthorized(address account);
     error ChannelDoesNotExist(bytes32 channel);
     error ChannelAlreadyExists(bytes32 channel);
@@ -50,9 +51,16 @@ contract FluentHost is IFluentHost, UUPSUpgradeable, ContextUpgradeable {
     mapping(bytes32 => Channel) _channels;
 
     function initialize(
+        uint64 gracePeriod_,
+        uint256 minReward_,
+        uint256 maxReward_,
         IFluentDao dao_,
         IFluentProvider provider_
     ) external initializer {
+        minReward = minReward_;
+        maxReward = maxReward_;
+        gracePeriod = gracePeriod_;
+
         dao = dao_;
         provider = provider_;
 
@@ -71,11 +79,11 @@ contract FluentHost is IFluentHost, UUPSUpgradeable, ContextUpgradeable {
     }
 
     function openChannel(
-        bytes32 provider_,
-        bytes4 bucket_
+        bytes32 providerId,
+        bytes4 bucketId
     ) external returns (bytes32) {
         address account = _msgSender();
-        bytes32 id = keccak256(abi.encode(provider_, account));
+        bytes32 id = keccak256(abi.encode(providerId, account));
 
         Channel storage channel = _channels[id];
 
@@ -83,15 +91,7 @@ contract FluentHost is IFluentHost, UUPSUpgradeable, ContextUpgradeable {
             revert ChannelAlreadyExists(id);
         }
 
-        (Bucket memory bucket, address recipient) = provider.bucketData(
-            provider_,
-            bucket_
-        );
-
-        uint64 expired = uint64(DateTime.addMonths(block.timestamp, 1));
-
-        IFluentToken(bucket.token).transact(account, recipient, bucket.amount);
-        channel.open(provider_, account, expired, bucket_);
+        channel.open(provider, account, providerId, bucketId, FEE);
 
         return id;
     }
@@ -112,38 +112,25 @@ contract FluentHost is IFluentHost, UUPSUpgradeable, ContextUpgradeable {
     }
 
     function processChannel(bytes32 id) external {
-        address sender = _msgSender();
+        address processor = _msgSender();
         Channel storage channel = _channels[id];
 
         if (!channel.exists()) {
             revert ChannelDoesNotExist(id);
         }
 
-        uint64 timestamp = uint64(block.timestamp);
-        uint64 unlock = channel.expired - PROCESS_PERIOD;
-
-        if (timestamp < unlock) {
-            revert("ChannelLocked");
+        if (channel.isLocked(gracePeriod)) {
+            revert ChannelLocked(id);
         }
 
-        (Bucket memory bucket, address recipient) = provider.bucketData(
-            id,
-            channel.bucket
+        channel.process(
+            provider,
+            processor,
+            gracePeriod,
+            minReward,
+            maxReward,
+            FEE
         );
-
-        // TODO THIS DOES NOT WORK
-
-        uint256 progress = ((timestamp - unlock) * 100_000) / PROCESS_PERIOD;
-        uint256 reward = (((bucket.amount * MAX_FEE) / 100_000) * progress) /
-            100_000;
-
-        IFluentToken(bucket.token).transact(
-            sender,
-            recipient,
-            bucket.amount - reward
-        );
-
-        channel.process();
     }
 
     function _authorizeUpgrade(
