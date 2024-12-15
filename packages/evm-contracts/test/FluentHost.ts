@@ -10,8 +10,8 @@ import { Interval, Signer } from "./types";
 import { signers, abi, provider, unit } from "./utils";
 import { RpcBlockOutput } from "hardhat/internal/hardhat-network/provider/output";
 import { getToken, getUnderlying } from "./utils/token";
-import { BucketStruct } from "../typechain-types/contracts/FluentProvider";
-import { getBucket } from "./utils/provider";
+import { getEndpoint } from "./utils/provider";
+import { EndpointStruct } from "../typechain-types/contracts/FluentProvider";
 
 
 describe("FluentHost", function () {
@@ -97,24 +97,23 @@ describe("FluentHost", function () {
         let providerId: string
         let channelId: string
 
-        let bucketId: string;
-        let bucketData: BucketStruct
-
+        let endpoint: string;
+        let endpointData: EndpointStruct
 
         let block: RpcBlockOutput;
 
         beforeEach(async function () {
             let interval = Interval.Monthly;
-            
-            bucketData = getBucket(tokenAddress, interval)
+
+            endpointData = getEndpoint(tokenAddress, interval)
 
             providerId = ethers.keccak256(abi.encode(["address", "string"], [service.address, provider.validName]))
             channelId = ethers.keccak256(abi.encode(["bytes32", "address"], [providerId, account.address]))
-            bucketId = `${ethers.keccak256(abi.encode(["address", "bytes4"], [tokenAddress, bucketData.group]))}`.slice(0, 10);
+            endpoint = `${ethers.keccak256(abi.encode(["address", "bytes4"], [tokenAddress, endpointData.bucket]))}`.slice(0, 10);
 
 
-            await providerContract.openProvider(provider.validName, [bucketData])
-            await host.openChannel(providerId, bucketId);
+            await providerContract.openProvider(provider.validName, [endpointData])
+            await host.openChannel(providerId, endpoint);
 
             block = await account.signer.provider.getBlock('latest') as any
         });
@@ -129,18 +128,18 @@ describe("FluentHost", function () {
                 expect(data.provider).to.eq(providerId)
                 expect(data.account).to.eq(account.address)
                 expect(data.expired).to.eq(expired);
-                expect(data.bucket).to.eq(bucketId);
+                expect(data.endpoint).to.eq(endpoint);
             });
 
             it("# 2.1.2 Should revert if channel is already exists", async function () {
-                await expect(host.openChannel(providerId, bucketId))
+                await expect(host.openChannel(providerId, endpoint))
                     .to.be.revertedWithCustomError(host, "ChannelAlreadyExists").withArgs(channelId);
             });
 
             it("# 2.1.3 Should revert if provider does not exist", async function () {
                 const randomId = ethers.randomBytes(32);
 
-                await expect(host.openChannel(randomId, bucketId))
+                await expect(host.openChannel(randomId, endpoint))
                     .to.be.revertedWithCustomError(providerContract, 'ProviderDoesNotExist')
             });
 
@@ -149,7 +148,7 @@ describe("FluentHost", function () {
 
                 await host.closeChannel(channelId);
                 await expect(host.openChannel(providerId, randomId))
-                    .to.be.revertedWithCustomError(providerContract, 'BucketDoesNotExist')
+                    .to.be.revertedWithCustomError(providerContract, 'EndpointDoesNotExist')
             });
         })
 
@@ -172,7 +171,7 @@ describe("FluentHost", function () {
 
         describe("Migrate", function () {
             it("# 2.3.1 Should allow the account to migrate the bucket of a channel", async function () {
-                await expect(host.openChannel(providerId, bucketId))
+                await expect(host.openChannel(providerId, endpoint))
                     .to.be.revertedWithCustomError(host, "ChannelAlreadyExists").withArgs(channelId);
             });
         })

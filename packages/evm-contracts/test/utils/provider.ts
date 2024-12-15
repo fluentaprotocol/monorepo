@@ -1,5 +1,4 @@
 import { ethers } from "hardhat";
-import { BucketStruct } from "../../typechain-types/contracts/FluentProvider";
 import { Interval } from "../types";
 import { unit } from ".";
 
@@ -11,11 +10,11 @@ export const invalidName = "Harmonic Convergence Data Exchange Hub";
 //     amount: 32n,
 // }]
 
-export function getBucket(token: string, interval: Interval, amount = unit.value(10, 6), group: string = '0x00000000') {
+export function getEndpoint(token: string, interval: Interval, amount = unit.value(10, 6), bucket: string = '0x00000000') {
     return {
         token,
         interval,
-        group,
+        bucket,
         amount,
     }
 }

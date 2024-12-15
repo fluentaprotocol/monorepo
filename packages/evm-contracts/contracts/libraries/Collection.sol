@@ -2,28 +2,28 @@
 pragma solidity ^0.8.4;
 
 import {IFluentToken} from "../interfaces/IFluentToken.sol";
-import {Bucket, BucketUtils} from "./Bucket.sol";
+import {Endpoint, EndpointUtils} from "./Bucket.sol";
 
-struct BucketCollection {
+struct EndpointCollection {
     bytes4[] tags;
-    mapping(bytes4 => Bucket) data;
+    mapping(bytes4 => Endpoint) data;
     mapping(bytes4 => uint) indicies;
 }
 
 library CollectionUtils {
-    using BucketUtils for Bucket;
+    using EndpointUtils for Endpoint;
 
     function get(
-        BucketCollection storage self,
+        EndpointCollection storage self,
         bytes4 tag
-    ) internal view returns (Bucket storage) {
+    ) internal view returns (Endpoint storage) {
         return self.data[tag];
     }
 
     function add(
-        BucketCollection storage self,
+        EndpointCollection storage self,
         bytes4 tag,
-        Bucket calldata data
+        Endpoint calldata data
     ) internal returns (bool) {
         if (!contains(self, tag)) {
             self.tags.push(tag);
@@ -38,7 +38,7 @@ library CollectionUtils {
     }
 
     function remove(
-        BucketCollection storage self,
+        EndpointCollection storage self,
         bytes4 tag
     ) internal returns (bool) {
         uint256 index = self.indicies[tag];
@@ -69,11 +69,11 @@ library CollectionUtils {
     }
 
     function contains(
-        BucketCollection storage self,
+        EndpointCollection storage self,
         bytes4 tag
     ) internal view returns (bool) {
         return self.indicies[tag] != 0;
     }
 
-    function clear(BucketCollection storage self) internal {}
+    function clear(EndpointCollection storage self) internal {}
 }

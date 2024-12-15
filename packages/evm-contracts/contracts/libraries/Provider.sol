@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.4;
 
-import {Bucket, BucketUtils} from "./Bucket.sol";
-import {BucketCollection, CollectionUtils} from "./Collection.sol";
+import {Endpoint, EndpointUtils} from "./Bucket.sol";
+import {EndpointCollection, CollectionUtils} from "./Collection.sol";
 
 struct Provider {
     bytes32 id;
@@ -11,17 +11,17 @@ struct Provider {
     // mapping(bytes4 group => uint) _groups;
 
     // groups
-    BucketCollection buckets;
+    EndpointCollection endpoints;
 }
 
 library ProviderUtils {
-    using BucketUtils for Bucket;
+    using EndpointUtils for Endpoint;
     using CollectionUtils for *;
 
-    error BucketAlreadyExists();
-    error BucketDoesNotExist();
+    error EndpointAlreadyExists();
+    error EndpointDoesNotExist();
 
-    event BucketCreated(bytes32 indexed provider, bytes4 bucket);
+    // event BucketCreated(bytes32 indexed provider, bytes4 bucket);
 
     function id(
         string calldata name,
@@ -34,7 +34,7 @@ library ProviderUtils {
         Provider storage self,
         address owner,
         string calldata name,
-        Bucket[] calldata buckets
+        Endpoint[] calldata endpoints
     ) internal {
         // Update provider details
         self.id = id(name, owner);
@@ -42,9 +42,9 @@ library ProviderUtils {
         self.owner = owner;
 
         // Cache length for efficiency and iterate buckets
-        uint len = buckets.length;
+        uint len = endpoints.length;
         for (uint i; i < len; ) {
-            addBucket(self, buckets[i]);
+            addEndpoint(self, endpoints[i]);
 
             unchecked {
                 ++i;
@@ -57,7 +57,7 @@ library ProviderUtils {
         delete self.name;
         delete self.id;
 
-        self.buckets.clear();
+        self.endpoints.clear();
     }
 
     function exists(Provider storage self) internal view returns (bool) {
@@ -71,41 +71,49 @@ library ProviderUtils {
     //     return self.buckets.contains(tag);
     // }
 
-    function getBucket(
+    function getEndpoint(
         Provider storage self,
         bytes4 tag
-    ) internal view returns (Bucket storage) {
-        if (!self.buckets.contains(tag)) {
-            revert BucketDoesNotExist();
+    ) internal view returns (Endpoint storage) {
+        if (!self.endpoints.contains(tag)) {
+            revert EndpointDoesNotExist();
         }
 
-        return self.buckets.get(tag);
+        return self.endpoints.get(tag);
     }
 
-    function addBucket(
+    function addEndpoint(
         Provider storage self,
-        Bucket calldata data
+        Endpoint calldata data
     ) internal returns (bytes4) {
         bytes4 tag = data.tag();
 
-        if (self.buckets.contains(tag)) {
-            revert BucketAlreadyExists();
+        if (self.endpoints.contains(tag)) {
+            revert EndpointAlreadyExists();
         }
 
-        self.buckets.add(tag, data);
+        self.endpoints.add(tag, data);
 
-        emit BucketCreated(self.id, tag);
+        // emit BucketCreated(self.id, tag);
 
         return tag;
     }
 
-    function removeBucket(Provider storage self, bytes4 tag) internal {
-        if (!self.buckets.contains(tag)) {
-            revert BucketDoesNotExist();
+    function removeEndpoint(Provider storage self, bytes4 tag) internal {
+        if (!self.endpoints.contains(tag)) {
+            revert EndpointDoesNotExist();
         }
 
-        self.buckets.remove(tag);
+        self.endpoints.remove(tag);
     }
 
-    function modifyBucket(Provider storage self, bytes4 bucket) internal {}
+    function modifyEndpoint(
+        Provider storage self,
+        bytes4 tag,
+        uint256 amount
+    ) internal {
+        Endpoint storage bucket = getEndpoint(self, tag);
+
+        bucket.amount = amount;
+    }
 }

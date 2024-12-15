@@ -10,7 +10,7 @@ struct Channel {
     bytes32 provider;
     address account;
     uint64 expired;
-    bytes4 bucket;
+    bytes4 endpoint;
 }
 
 library ChannelUtils {
@@ -22,7 +22,7 @@ library ChannelUtils {
         IFluentProvider provider,
         address account,
         bytes32 providerId,
-        bytes4 bucketId,
+        bytes4 endpoint,
         uint fee
     ) internal {
         (
@@ -30,7 +30,7 @@ library ChannelUtils {
             address token,
             address recipient,
             Interval interval
-        ) = provider.getBucket(providerId, bucketId);
+        ) = provider.getEndpoint(providerId, endpoint);
 
         (uint value, uint discounted) = _feeValue(total, fee, 0);
         IFluentToken(token).transact(account, recipient, value, discounted);
@@ -38,14 +38,14 @@ library ChannelUtils {
         self.provider = providerId;
         self.account = account;
         self.expired = interval.next(block.timestamp);
-        self.bucket = bucketId;
+        self.endpoint = endpoint;
     }
 
     function close(Channel storage self) internal {
         delete self.provider;
         delete self.account;
         delete self.expired;
-        delete self.bucket;
+        delete self.endpoint;
     }
 
     function process(
@@ -62,7 +62,7 @@ library ChannelUtils {
             address token,
             address recipient,
             Interval interval
-        ) = provider.getBucket(self.provider, self.bucket);
+        ) = provider.getEndpoint(self.provider, self.endpoint);
 
         uint256 reward;
         uint256 discount;
@@ -95,7 +95,7 @@ library ChannelUtils {
         return
             self.provider != bytes32(0) ||
             self.account != address(0) ||
-            self.bucket != bytes4(0) ||
+            self.endpoint != bytes4(0) ||
             self.expired != 0;
     }
 

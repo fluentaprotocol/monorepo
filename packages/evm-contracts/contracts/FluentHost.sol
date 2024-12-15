@@ -4,7 +4,7 @@ pragma solidity ^0.8.4;
 import {IFluentDao} from "./interfaces/IFluentDao.sol";
 import {IFluentProvider} from "./interfaces/IFluentProvider.sol";
 import {Channel, ChannelUtils} from "./libraries/Channel.sol";
-import {Bucket, BucketUtils} from "./libraries/Bucket.sol";
+import {Endpoint, EndpointUtils} from "./libraries/Bucket.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
@@ -24,7 +24,7 @@ import "hardhat/console.sol";
 
 contract FluentHost is IFluentHost, UUPSUpgradeable, ContextUpgradeable {
     using ChannelUtils for Channel;
-    using BucketUtils for Bucket;
+    using EndpointUtils for Endpoint;
 
     uint32 private constant FEE = 8_000; // 8%
 

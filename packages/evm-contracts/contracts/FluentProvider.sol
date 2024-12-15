@@ -3,11 +3,11 @@ pragma solidity ^0.8.4;
 
 import {String} from "./libraries/String.sol";
 import {IFluentToken} from "./interfaces/IFluentToken.sol";
-import {Bucket, BucketUtils} from "./libraries/Bucket.sol";
+import {Endpoint, BucketParams, EndpointUtils} from "./libraries/Bucket.sol";
 import {Interval} from "./libraries/Interval.sol";
 import {IFluentProvider} from "./interfaces/IFluentProvider.sol";
 import {Provider, ProviderUtils} from "./libraries/Provider.sol";
-import {BucketCollection, CollectionUtils} from "./libraries/Collection.sol";
+import {EndpointCollection, CollectionUtils} from "./libraries/Collection.sol";
 
 import {Context} from "@openzeppelin/contracts/utils/Context.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -29,16 +29,16 @@ contract FluentProvider is
 {
     using String for *;
 
-    using BucketUtils for Bucket;
+    using EndpointUtils for Endpoint;
     using ProviderUtils for Provider;
-    using CollectionUtils for BucketCollection;
+    using CollectionUtils for EndpointCollection;
 
     error ProviderUnauthorizedAccount(address account);
     error ProviderInvalidAccount(address account);
 
     error ProviderAlreadyExists();
     error ProviderDoesNotExist();
-    error ProviderBucketsInvalid();
+    error ProviderEndpointsInvalid();
     error ProviderNameInvalid();
 
     mapping(bytes32 => Provider) private _providers;
@@ -50,13 +50,13 @@ contract FluentProvider is
 
     function openProvider(
         string calldata name,
-        Bucket[] calldata buckets
+        Endpoint[] calldata endpoints
     ) external returns (bytes32) {
         address account = _msgSender();
 
         // Validate inputs
-        if (buckets.length == 0) {
-            revert ProviderBucketsInvalid();
+        if (endpoints.length == 0) {
+            revert ProviderEndpointsInvalid();
         }
 
         if (bytes(name).length > 32 || bytes(name).length == 0) {
@@ -70,7 +70,7 @@ contract FluentProvider is
             revert ProviderAlreadyExists();
         }
 
-        provider.open(account, name, buckets);
+        provider.open(account, name, endpoints);
 
         return id;
     }
@@ -126,13 +126,13 @@ contract FluentProvider is
         owner = provider_.owner;
     }
 
-    // function getProviderBuckets(
+    // function getProviderEndpoints(
     //     bytes32 id
     // ) external view returns (bytes4[] memory) {
     //     return _providers[id].buckets.tags;
     // }
 
-    function createBucket(bytes32 provider, Bucket calldata data) external {
+    function createEndpoint(bytes32 provider, Endpoint calldata data) external {
         address account = _msgSender();
         Provider storage provider_ = _providers[provider];
 
@@ -144,10 +144,10 @@ contract FluentProvider is
             revert ProviderUnauthorizedAccount(account);
         }
 
-        provider_.addBucket(data);
+        provider_.addEndpoint(data);
     }
 
-    function removeBucket(bytes32 provider, bytes4 tag) external {
+    function removeEndpoint(bytes32 provider, bytes4 tag) external {
         address account = _msgSender();
         Provider storage provider_ = _providers[provider];
 
@@ -159,10 +159,10 @@ contract FluentProvider is
             revert ProviderUnauthorizedAccount(account);
         }
 
-        provider_.removeBucket(tag);
+        provider_.removeEndpoint(tag);
     }
 
-    function modifyBucket(bytes32 provider, bytes4 tag) external {
+    function modifyEndpoint(bytes32 provider, bytes4 tag, uint256 amount) external {
         address account = _msgSender();
         Provider storage provider_ = _providers[provider];
 
@@ -174,12 +174,12 @@ contract FluentProvider is
             revert ProviderUnauthorizedAccount(account);
         }
 
-        provider_.modifyBucket(tag);
+        provider_.modifyEndpoint(tag, amount);
     }
 
-    function getBucket(
+    function getEndpoint(
         bytes32 provider,
-        bytes4 tag
+        bytes4 endpoint
     )
         external
         view
@@ -197,13 +197,13 @@ contract FluentProvider is
         }
 
 
-        Bucket storage bucket_ = provider_.getBucket(tag);
+        Endpoint storage endpoint_ = provider_.getEndpoint(endpoint);
 
         return (
-            bucket_.amount,
-            bucket_.token,
+            endpoint_.amount,
+            endpoint_.token,
             provider_.owner,
-            bucket_.interval
+            endpoint_.interval
         );
     }
 
