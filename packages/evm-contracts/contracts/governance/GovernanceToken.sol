@@ -11,9 +11,9 @@ contract GovernanceToken is ERC20, Ownable, ERC20Permit {
         ERC20Permit("GovernanceToken")
         Ownable(msg.sender)
     {
-        // uint256 _amount = 1000000 * 10 ** decimals();
-        // _mint(msg.sender, _amount); // Mint 1M tokens to the deployer
-        // _moveDelegates(address(0), msg.sender, _amount);
+        uint256 _amount = 1000000 * 10 ** decimals();
+        _mint(msg.sender, _amount); // Mint 1M tokens to the deployer
+        _moveDelegates(address(0), msg.sender, _amount);
     }
 
     // Mint new tokens (only owner)
@@ -49,7 +49,7 @@ contract GovernanceToken is ERC20, Ownable, ERC20Permit {
         _moveDelegates(_msgSender(), recipient, amount);
 
         return result;
-    }    
+    }
 
     // Mapping to track delegation of voting power
     mapping(address => address) internal _delegates;
@@ -99,6 +99,19 @@ contract GovernanceToken is ERC20, Ownable, ERC20Permit {
         uint32 nCheckpoints = numCheckpoints[account];
         return
             nCheckpoints > 0 ? checkpoints[account][nCheckpoints - 1].votes : 0;
+    }
+
+    modifier onlyVotingPower() {
+        address delegatee = this.delegates(msg.sender);
+        if (delegatee != address(0)) {
+            require(
+                this.getCurrentVotes(delegatee) > 0,
+                "No voting power delegated"
+            );
+        } else {
+            require(this.getCurrentVotes(msg.sender) > 0, "No voting power");
+        }
+        _;
     }
 
     /**
@@ -240,7 +253,7 @@ contract GovernanceToken is ERC20, Ownable, ERC20Permit {
             }
 
             if (dstRep != address(0)) {
-                // GTrease new representative
+                // increase new representative
                 uint32 dstRepNum = numCheckpoints[dstRep];
                 uint256 dstRepOld = dstRepNum > 0
                     ? checkpoints[dstRep][dstRepNum - 1].votes
@@ -309,7 +322,6 @@ contract GovernanceToken is ERC20, Ownable, ERC20Permit {
     );
     event ProposalExecuted(uint256 proposalId, address target, bytes data);
 
-    // Struct for a proposal
     struct Proposal {
         string description;
         address target;
@@ -323,18 +335,10 @@ contract GovernanceToken is ERC20, Ownable, ERC20Permit {
     Proposal[] public proposals;
     uint256 public proposalTimelockDuration = 1 days;
 
-    modifier onlyTokenHolders() {
-        require(
-            balanceOf(msg.sender) > 0,
-            "Only token holders can create proposals"
-        );
-        _;
-    }
-
     // Create a proposal
     function createProposal(
         string calldata description
-    ) external onlyTokenHolders {
+    ) external onlyVotingPower {
         address target = address(0);
         bytes memory data = "";
         uint256 endTime = block.timestamp + proposalTimelockDuration;
@@ -362,7 +366,7 @@ contract GovernanceToken is ERC20, Ownable, ERC20Permit {
         string calldata description,
         address target,
         bytes calldata data
-    ) external onlyTokenHolders {
+    ) external onlyVotingPower {
         uint256 endTime = block.timestamp + proposalTimelockDuration;
         proposals.push(
             Proposal({
@@ -396,10 +400,7 @@ contract GovernanceToken is ERC20, Ownable, ERC20Permit {
             "Proposal can not be executed yet"
         );
         require(!proposal.executed, "Proposal already executed");
-        require(
-            proposal.votesFor > 0 || proposal.votesAgainst > 0,
-            "No votes cast"
-        );
+        require(proposal.votesFor > 0, "No votes cast");
         require(proposal.votesFor > proposal.votesAgainst, "Proposal rejected");
 
         // Execute the proposal's on-chain logic
@@ -421,13 +422,14 @@ contract GovernanceToken is ERC20, Ownable, ERC20Permit {
     }
 
     // Vote on a proposal
-    // TODO: work with DELEGATED
     function vote(uint256 proposalId, bool support) external {
         Proposal storage proposal = proposals[proposalId];
         require(block.timestamp < proposal.endTime, "Voting period has ended");
         require(!hasVoted[proposalId][msg.sender], "Already voted");
 
-        uint256 votingPower = balanceOf(msg.sender);
+        address delegatee = this.delegates(msg.sender);
+        require(delegatee != address(0), "No delegate set");
+        uint256 votingPower = this.getCurrentVotes(msg.sender);
         require(votingPower > 0, "No voting power");
 
         hasVoted[proposalId][msg.sender] = true;
@@ -438,6 +440,11 @@ contract GovernanceToken is ERC20, Ownable, ERC20Permit {
             proposal.votesAgainst += votingPower;
         }
 
-        emit Voted(proposalId, msg.sender, support, balanceOf(msg.sender));
+        emit Voted(
+            proposalId,
+            msg.sender,
+            support,
+            this.getCurrentVotes(msg.sender)
+        );
     }
 }
