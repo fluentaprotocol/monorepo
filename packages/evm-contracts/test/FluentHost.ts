@@ -1,9 +1,4 @@
 import { expect } from "chai";
-// import { ethers, upgrades } from "hardhat";
-// import { HardhatEthersSigner } from "@nomicfoundation/hardhat-ethers/signers";
-// import { FluentProvider__factory, FluentProvider, FluentHost__factory, FluentHost, Address } from "../typechain-types";
-// import { deployHost, deployHostImplementation } from "./utils/deploy";
-
 import { ethers, upgrades } from "hardhat";
 import { FluentProvider, FluentProvider__factory, FluentHost, FluentHost__factory, FluentToken } from "../typechain-types";
 import { Interval, Signer } from "./types";
@@ -12,9 +7,6 @@ import { RpcBlockOutput } from "hardhat/internal/hardhat-network/provider/output
 import { getToken, getUnderlying } from "./utils/token";
 import { BucketStruct, EndpointStruct } from "../typechain-types/contracts/FluentProvider";
 import { getBucket, getEndpoint } from "./utils/provider";
-// import { getBucketParams, getEndpoint } from "./utils/provider";
-// import { BucketParamsStruct, EndpointParamsStruct, EndpointStruct } from "../typechain-types/contracts/FluentProvider";
-
 
 describe("FluentHost", function () {
     const GRACE = 60 * 60 * 48;

@@ -2,12 +2,9 @@ import { expect } from "chai";
 import { ethers, upgrades } from "hardhat";
 import { FluentProvider, FluentProvider__factory } from "../typechain-types";
 import { Interval, Signer } from "./types";
-import { provider, signers, abi, unit } from './utils'
-import { getToken, getUnderlying } from "./utils/token";
+import { provider, signers, abi } from './utils'
 import { BucketStruct, EndpointStruct } from "../typechain-types/contracts/FluentProvider";
 import { getBucket, getEndpoint } from "./utils/provider";
-// import { getBucketParams, getEndpoint } from "./utils/provider";
-// import { BucketParamsStruct, EndpointParamsStruct, EndpointStruct } from "../typechain-types/contracts/FluentProvider";
 
 describe("FluentProvider", function () {
     const ZERO_ADDRESSS = ethers.ZeroAddress;
