@@ -5,34 +5,34 @@ import {IFluentToken} from "../interfaces/IFluentToken.sol";
 import {Interval} from "./Interval.sol";
 import {CollectionUtils} from "./Collection.sol";
 
-struct Bucket {
-    string name;
-    Interval interval;
+struct Endpoint {
+    uint256 amount;
+    address token;
+    bytes4 bucket;
 }
 
-struct BucketCollection {
+struct EndpointCollection {
     bytes4[] tags;
-    mapping(bytes4 => Bucket) data;
+    mapping(bytes4 => Endpoint) data;
     mapping(bytes4 => uint) indicies;
 }
 
-library BucketUtils {
-    function tag(Bucket calldata self) internal pure returns (bytes4) {
-        return bytes4(keccak256(abi.encode(self.name, self.interval)));
+library EndpointUtils {
+    function tag(Endpoint calldata self) internal pure returns (bytes4) {
+        return bytes4(keccak256(abi.encode(self.token, self.bucket)));
     }
 
-    
     function get(
-        BucketCollection storage self,
+        EndpointCollection storage self,
         bytes4 tag_
-    ) internal view returns (Bucket storage) {
+    ) internal view returns (Endpoint storage) {
         return self.data[tag_];
     }
 
     function add(
-        BucketCollection storage self,
+        EndpointCollection storage self,
         bytes4 tag_,
-        Bucket calldata data
+        Endpoint calldata data
     ) internal returns (bool) {
                bool success = CollectionUtils.add(tag_, self.tags, self.indicies);
 
@@ -44,7 +44,7 @@ library BucketUtils {
     }
 
     function remove(
-        BucketCollection storage self,
+        EndpointCollection storage self,
         bytes4 tag_
     ) internal returns (bool) {
         bool success = CollectionUtils.remove(tag_, self.tags, self.indicies);
@@ -57,7 +57,7 @@ library BucketUtils {
     }
 
     function contains(
-        BucketCollection storage self,
+        EndpointCollection storage self,
         bytes4 tag_
     ) internal view returns (bool) {
         return CollectionUtils.contains(self.indicies, tag_);

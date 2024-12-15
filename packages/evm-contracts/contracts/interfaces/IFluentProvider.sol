@@ -2,7 +2,6 @@
 pragma solidity ^0.8.27;
 
 import {IFluentToken} from "./IFluentToken.sol";
-import {Endpoint} from "../libraries/Bucket.sol";
 import {Interval} from "../libraries/Interval.sol";
 
 interface IFluentProvider {

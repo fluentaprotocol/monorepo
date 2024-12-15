@@ -3,11 +3,12 @@ pragma solidity ^0.8.4;
 
 import {String} from "./libraries/String.sol";
 import {IFluentToken} from "./interfaces/IFluentToken.sol";
-import {Endpoint, BucketParams, EndpointUtils} from "./libraries/Bucket.sol";
+import {Bucket, BucketUtils, BucketCollection} from "./libraries/Bucket.sol";
+import {Endpoint, EndpointUtils, EndpointCollection} from "./libraries/Endpoint.sol";
 import {Interval} from "./libraries/Interval.sol";
 import {IFluentProvider} from "./interfaces/IFluentProvider.sol";
 import {Provider, ProviderUtils} from "./libraries/Provider.sol";
-import {EndpointCollection, CollectionUtils} from "./libraries/Collection.sol";
+import {CollectionUtils} from "./libraries/Collection.sol";
 
 import {Context} from "@openzeppelin/contracts/utils/Context.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -29,19 +30,29 @@ contract FluentProvider is
 {
     using String for *;
 
+    using BucketUtils for Bucket;
+    using BucketUtils for BucketCollection;
     using EndpointUtils for Endpoint;
+    using EndpointUtils for EndpointCollection;
     using ProviderUtils for Provider;
-    using CollectionUtils for EndpointCollection;
 
     error ProviderUnauthorizedAccount(address account);
     error ProviderInvalidAccount(address account);
 
     error ProviderAlreadyExists();
     error ProviderDoesNotExist();
-    error ProviderEndpointsInvalid();
+    error ProviderParamsInvalid();
     error ProviderNameInvalid();
 
+    error EndpointAlreadyExists();
+    error EndpointDoesNotExist();
+
+    error BucketAlreadyExists();
+    error BucketDoesNotExist();
+
     mapping(bytes32 => Provider) private _providers;
+    mapping(bytes32 => BucketCollection) private _buckets;
+    mapping(bytes32 => EndpointCollection) private _endpoints;
 
     function initialize() external initializer {
         __Context_init();
@@ -50,38 +61,74 @@ contract FluentProvider is
 
     function openProvider(
         string calldata name,
+        Bucket[] calldata buckets,
         Endpoint[] calldata endpoints
     ) external returns (bytes32) {
         address account = _msgSender();
 
         // Validate inputs
-        if (endpoints.length == 0) {
-            revert ProviderEndpointsInvalid();
+        if (buckets.length == 0) {
+            revert ProviderParamsInvalid();
         }
 
         if (bytes(name).length > 32 || bytes(name).length == 0) {
             revert ProviderNameInvalid();
         }
 
-        bytes32 id = ProviderUtils.id(name, account);
-        Provider storage provider = _providers[id];
+        bytes32 provider = ProviderUtils.id(name, account);
+        Provider storage provider_ = _providers[provider];
 
-        if (provider.exists()) {
+        if (provider_.exists()) {
             revert ProviderAlreadyExists();
         }
 
-        provider.open(account, name, endpoints);
+        BucketCollection storage buckets_ = _buckets[provider];
 
-        return id;
+        // Cache length for efficiency and iterate buckets
+        uint bucketLength = buckets.length;
+        for (uint i; i < bucketLength; ) {
+            Bucket calldata bucket = buckets[i];
+            bool success = buckets_.add(bucket.tag(), bucket);
+
+            if (!success) {
+                revert EndpointAlreadyExists();
+            }
+
+            unchecked {
+                ++i;
+            }
+        }
+
+        EndpointCollection storage endpoints_ = _endpoints[provider];
+
+        // Cache length for efficiency and iterate buckets
+        uint endpointsLen = endpoints.length;
+        for (uint i; i < endpointsLen; ) {
+            Endpoint calldata endpoint = endpoints[i];
+
+            if (endpoint.bucket != bytes4(0)) {
+                // TODO check if endpoint bucket exists
+            }
+
+            bool success = endpoints_.add(endpoint.tag(), endpoint);
+
+            if (!success) {
+                revert EndpointAlreadyExists();
+            }
+
+            unchecked {
+                ++i;
+            }
+        }
+
+        provider_.open(account, name);
+
+        return provider;
     }
 
     function closeProvider(bytes32 provider) external {
         address account = _msgSender();
-        Provider storage provider_ = _providers[provider];
-
-        if (!provider_.exists()) {
-            revert ProviderDoesNotExist();
-        }
+        Provider storage provider_ = _getProvider(provider);
 
         if (account != provider_.owner) {
             revert ProviderUnauthorizedAccount(account);
@@ -96,11 +143,7 @@ contract FluentProvider is
         }
 
         address sender = _msgSender();
-        Provider storage provider_ = _providers[provider];
-
-        if (!provider_.exists()) {
-            revert ProviderDoesNotExist();
-        }
+        Provider storage provider_ = _getProvider(provider);
 
         if (sender != provider_.owner) {
             revert ProviderUnauthorizedAccount(sender);
@@ -126,55 +169,62 @@ contract FluentProvider is
         owner = provider_.owner;
     }
 
-    // function getProviderEndpoints(
-    //     bytes32 id
-    // ) external view returns (bytes4[] memory) {
-    //     return _providers[id].buckets.tags;
-    // }
+    function getProviderEndpoints(
+        bytes32 id
+    ) external view returns (bytes4[] memory) {
+        return _endpoints[id].tags;
+    }
 
     function createEndpoint(bytes32 provider, Endpoint calldata data) external {
         address account = _msgSender();
-        Provider storage provider_ = _providers[provider];
-
-        if (!provider_.exists()) {
-            revert ProviderDoesNotExist();
-        }
+        Provider storage provider_ = _getProvider(provider);
 
         if (provider_.owner != account) {
             revert ProviderUnauthorizedAccount(account);
         }
 
-        provider_.addEndpoint(data);
+        EndpointCollection storage endpoints_ = _endpoints[provider];
+        bytes4 tag = data.tag();
+
+        bool success = endpoints_.add(tag, data);
+
+        if (!success) {
+            revert EndpointAlreadyExists();
+        }
     }
 
     function removeEndpoint(bytes32 provider, bytes4 tag) external {
         address account = _msgSender();
-        Provider storage provider_ = _providers[provider];
-
-        if (!provider_.exists()) {
-            revert ProviderDoesNotExist();
-        }
+        Provider storage provider_ = _getProvider(provider);
 
         if (provider_.owner != account) {
             revert ProviderUnauthorizedAccount(account);
         }
 
-        provider_.removeEndpoint(tag);
+        EndpointCollection storage endpoints_ = _endpoints[provider];
+
+        bool exists = endpoints_.remove(tag);
+
+        if (!exists) {
+            revert EndpointDoesNotExist();
+        }
     }
 
-    function modifyEndpoint(bytes32 provider, bytes4 tag, uint256 amount) external {
+    function modifyEndpoint(
+        bytes32 provider,
+        bytes4 endpoint,
+        uint256 amount
+    ) external {
         address account = _msgSender();
-        Provider storage provider_ = _providers[provider];
-
-        if (!provider_.exists()) {
-            revert ProviderDoesNotExist();
-        }
+        Provider storage provider_ = _getProvider(provider);
 
         if (provider_.owner != account) {
             revert ProviderUnauthorizedAccount(account);
         }
 
-        provider_.modifyEndpoint(tag, amount);
+        Endpoint storage endpoint_ = _getEndpoint(provider, endpoint);
+
+        endpoint_.amount = amount;
     }
 
     function getEndpoint(
@@ -190,21 +240,54 @@ contract FluentProvider is
             Interval interval
         )
     {
+        Provider storage provider_ = _getProvider(provider);
+        Endpoint storage endpoint_ = _getEndpoint(provider, endpoint);
+        Bucket storage bucket_ = _getBucket(provider, endpoint_.bucket);
+
+        return (
+            endpoint_.amount,
+            endpoint_.token,
+            provider_.owner,
+            bucket_.interval
+        );
+    }
+
+    function _getBucket(
+        bytes32 provider,
+        bytes4 bucket
+    ) private view returns (Bucket storage) {
+        BucketCollection storage buckets_ = _buckets[provider];
+
+        if (!buckets_.contains(bucket)) {
+            revert BucketDoesNotExist();
+        }
+
+        return buckets_.get(bucket);
+    }
+
+    function _getEndpoint(
+        bytes32 provider,
+        bytes4 endpoint
+    ) private view returns (Endpoint storage) {
+        EndpointCollection storage endpoints_ = _endpoints[provider];
+
+        if (!endpoints_.contains(endpoint)) {
+            revert EndpointDoesNotExist();
+        }
+
+        return endpoints_.get(endpoint);
+    }
+
+    function _getProvider(
+        bytes32 provider
+    ) private view returns (Provider storage) {
         Provider storage provider_ = _providers[provider];
 
         if (!provider_.exists()) {
             revert ProviderDoesNotExist();
         }
 
-
-        Endpoint storage endpoint_ = provider_.getEndpoint(endpoint);
-
-        return (
-            endpoint_.amount,
-            endpoint_.token,
-            provider_.owner,
-            endpoint_.interval
-        );
+        return provider_;
     }
 
     function _authorizeUpgrade(

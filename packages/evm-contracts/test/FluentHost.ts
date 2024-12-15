@@ -10,8 +10,10 @@ import { Interval, Signer } from "./types";
 import { signers, abi, provider, unit } from "./utils";
 import { RpcBlockOutput } from "hardhat/internal/hardhat-network/provider/output";
 import { getToken, getUnderlying } from "./utils/token";
-import { getEndpoint } from "./utils/provider";
-import { EndpointStruct } from "../typechain-types/contracts/FluentProvider";
+import { BucketStruct, EndpointStruct } from "../typechain-types/contracts/FluentProvider";
+import { getBucket, getEndpoint } from "./utils/provider";
+// import { getBucketParams, getEndpoint } from "./utils/provider";
+// import { BucketParamsStruct, EndpointParamsStruct, EndpointStruct } from "../typechain-types/contracts/FluentProvider";
 
 
 describe("FluentHost", function () {
@@ -71,7 +73,6 @@ describe("FluentHost", function () {
         let [underlying] = await getUnderlying(dao).then((x) => ([x[0].connect(account.signer), x[1]]) as typeof x);
         [token, tokenAddress] = await getToken(underlying, dao, hostAddress).then((x) => ([x[0].connect(account.signer), x[1]]) as typeof x);
 
-
         let value = unit.value(1);
 
         await underlying.mint(account.address, value);
@@ -97,23 +98,23 @@ describe("FluentHost", function () {
         let providerId: string
         let channelId: string
 
-        let endpoint: string;
-        let endpointData: EndpointStruct
+        let bucketTag: string;
+        let bucketData: BucketStruct;
+
+        let endpointTag: string;
+        let endpointData: EndpointStruct;
 
         let block: RpcBlockOutput;
 
         beforeEach(async function () {
-            let interval = Interval.Monthly;
-
-            endpointData = getEndpoint(tokenAddress, interval)
-
+            [bucketData, bucketTag] = getBucket(Interval.Monthly, "Fluenta");
+            [endpointData, endpointTag] = getEndpoint(tokenAddress, bucketTag);
+    
             providerId = ethers.keccak256(abi.encode(["address", "string"], [service.address, provider.validName]))
             channelId = ethers.keccak256(abi.encode(["bytes32", "address"], [providerId, account.address]))
-            endpoint = `${ethers.keccak256(abi.encode(["address", "bytes4"], [tokenAddress, endpointData.bucket]))}`.slice(0, 10);
 
-
-            await providerContract.openProvider(provider.validName, [endpointData])
-            await host.openChannel(providerId, endpoint);
+            await providerContract.openProvider(provider.validName, [bucketData], [endpointData])
+            await host.openChannel(providerId, endpointTag);
 
             block = await account.signer.provider.getBlock('latest') as any
         });
@@ -128,18 +129,18 @@ describe("FluentHost", function () {
                 expect(data.provider).to.eq(providerId)
                 expect(data.account).to.eq(account.address)
                 expect(data.expired).to.eq(expired);
-                expect(data.endpoint).to.eq(endpoint);
+                expect(data.endpoint).to.eq(endpointTag);
             });
 
             it("# 2.1.2 Should revert if channel is already exists", async function () {
-                await expect(host.openChannel(providerId, endpoint))
+                await expect(host.openChannel(providerId, endpointTag))
                     .to.be.revertedWithCustomError(host, "ChannelAlreadyExists").withArgs(channelId);
             });
 
             it("# 2.1.3 Should revert if provider does not exist", async function () {
                 const randomId = ethers.randomBytes(32);
 
-                await expect(host.openChannel(randomId, endpoint))
+                await expect(host.openChannel(randomId, endpointTag))
                     .to.be.revertedWithCustomError(providerContract, 'ProviderDoesNotExist')
             });
 
@@ -171,7 +172,7 @@ describe("FluentHost", function () {
 
         describe("Migrate", function () {
             it("# 2.3.1 Should allow the account to migrate the bucket of a channel", async function () {
-                await expect(host.openChannel(providerId, endpoint))
+                await expect(host.openChannel(providerId, endpointTag))
                     .to.be.revertedWithCustomError(host, "ChannelAlreadyExists").withArgs(channelId);
             });
         })

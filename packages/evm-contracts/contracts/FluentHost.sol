@@ -4,7 +4,7 @@ pragma solidity ^0.8.4;
 import {IFluentDao} from "./interfaces/IFluentDao.sol";
 import {IFluentProvider} from "./interfaces/IFluentProvider.sol";
 import {Channel, ChannelUtils} from "./libraries/Channel.sol";
-import {Endpoint, EndpointUtils} from "./libraries/Bucket.sol";
+import {Endpoint, EndpointUtils} from "./libraries/Endpoint.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
@@ -72,7 +72,7 @@ contract FluentHost is IFluentHost, UUPSUpgradeable, ContextUpgradeable {
 
     function openChannel(
         bytes32 providerId,
-        bytes4 bucketId
+        bytes4 endpoint
     ) external returns (bytes32) {
         address account = _msgSender();
         bytes32 id = keccak256(abi.encode(providerId, account));
@@ -83,7 +83,7 @@ contract FluentHost is IFluentHost, UUPSUpgradeable, ContextUpgradeable {
             revert ChannelAlreadyExists(id);
         }
 
-        channel.open(provider, account, providerId, bucketId, FEE);
+        channel.open(provider, account, providerId, endpoint, FEE);
 
         return id;
     }

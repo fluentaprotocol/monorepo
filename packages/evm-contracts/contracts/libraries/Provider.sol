@@ -1,27 +1,16 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.4;
 
-import {Endpoint, EndpointUtils} from "./Bucket.sol";
+import {Endpoint, EndpointUtils} from "./Endpoint.sol";
 import {EndpointCollection, CollectionUtils} from "./Collection.sol";
 
 struct Provider {
     bytes32 id;
     string name;
     address owner;
-    // mapping(bytes4 group => uint) _groups;
-
-    // groups
-    EndpointCollection endpoints;
 }
 
 library ProviderUtils {
-    using EndpointUtils for Endpoint;
-    using CollectionUtils for *;
-
-    error EndpointAlreadyExists();
-    error EndpointDoesNotExist();
-
-    // event BucketCreated(bytes32 indexed provider, bytes4 bucket);
 
     function id(
         string calldata name,
@@ -33,31 +22,29 @@ library ProviderUtils {
     function open(
         Provider storage self,
         address owner,
-        string calldata name,
-        Endpoint[] calldata endpoints
+        string calldata name
+        // BucketParams[] calldata buckets
     ) internal {
         // Update provider details
         self.id = id(name, owner);
         self.name = name;
         self.owner = owner;
 
-        // Cache length for efficiency and iterate buckets
-        uint len = endpoints.length;
-        for (uint i; i < len; ) {
-            addEndpoint(self, endpoints[i]);
+        // // Cache length for efficiency and iterate buckets
+        // uint len = buckets.length;
+        // for (uint i; i < len; ) {
+        //     // addEndpoint(self, buckets[i]);
 
-            unchecked {
-                ++i;
-            }
-        }
+        //     unchecked {
+        //         ++i;
+        //     }
+        // }
     }
 
     function close(Provider storage self) internal {
         delete self.owner;
         delete self.name;
         delete self.id;
-
-        self.endpoints.clear();
     }
 
     function exists(Provider storage self) internal view returns (bool) {
@@ -71,49 +58,49 @@ library ProviderUtils {
     //     return self.buckets.contains(tag);
     // }
 
-    function getEndpoint(
-        Provider storage self,
-        bytes4 tag
-    ) internal view returns (Endpoint storage) {
-        if (!self.endpoints.contains(tag)) {
-            revert EndpointDoesNotExist();
-        }
+    // function getEndpoint(
+    //     Provider storage self,
+    //     bytes4 tag
+    // ) internal view returns (Endpoint storage) {
+    //     if (!self.endpoints.contains(tag)) {
+    //         revert EndpointDoesNotExist();
+    //     }
 
-        return self.endpoints.get(tag);
-    }
+    //     return self.endpoints.get(tag);
+    // }
 
-    function addEndpoint(
-        Provider storage self,
-        Endpoint calldata data
-    ) internal returns (bytes4) {
-        bytes4 tag = data.tag();
+    // function addEndpoint(
+    //     Provider storage self,
+    //     Endpoint calldata data
+    // ) internal returns (bytes4) {
+    //     bytes4 tag = data.tag();
 
-        if (self.endpoints.contains(tag)) {
-            revert EndpointAlreadyExists();
-        }
+    //     if (self.endpoints.contains(tag)) {
+    //         revert EndpointAlreadyExists();
+    //     }
 
-        self.endpoints.add(tag, data);
+    //     self.endpoints.add(tag, data);
 
-        // emit BucketCreated(self.id, tag);
+    //     // emit BucketCreated(self.id, tag);
 
-        return tag;
-    }
+    //     return tag;
+    // }
 
-    function removeEndpoint(Provider storage self, bytes4 tag) internal {
-        if (!self.endpoints.contains(tag)) {
-            revert EndpointDoesNotExist();
-        }
+    // function removeEndpoint(Provider storage self, bytes4 tag) internal {
+    //     if (!self.endpoints.contains(tag)) {
+    //         revert EndpointDoesNotExist();
+    //     }
 
-        self.endpoints.remove(tag);
-    }
+    //     self.endpoints.remove(tag);
+    // }
 
-    function modifyEndpoint(
-        Provider storage self,
-        bytes4 tag,
-        uint256 amount
-    ) internal {
-        Endpoint storage bucket = getEndpoint(self, tag);
+    // function modifyEndpoint(
+    //     Provider storage self,
+    //     bytes4 tag,
+    //     uint256 amount
+    // ) internal {
+    //     Endpoint storage bucket = getEndpoint(self, tag);
 
-        bucket.amount = amount;
-    }
+    //     bucket.amount = amount;
+    // }
 }

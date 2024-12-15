@@ -2,23 +2,22 @@ import { expect } from "chai";
 import { ethers, upgrades } from "hardhat";
 import { FluentProvider, FluentProvider__factory } from "../typechain-types";
 import { Interval, Signer } from "./types";
-import { provider, signers, abi } from './utils'
+import { provider, signers, abi, unit } from './utils'
 import { getToken, getUnderlying } from "./utils/token";
-import { getEndpoint } from "./utils/provider";
-import { EndpointStruct } from "../typechain-types/contracts/FluentProvider";
+import { BucketStruct, EndpointStruct } from "../typechain-types/contracts/FluentProvider";
+import { getBucket, getEndpoint } from "./utils/provider";
+// import { getBucketParams, getEndpoint } from "./utils/provider";
+// import { BucketParamsStruct, EndpointParamsStruct, EndpointStruct } from "../typechain-types/contracts/FluentProvider";
 
 describe("FluentProvider", function () {
     const ZERO_ADDRESSS = ethers.ZeroAddress;
     const TOKEN_ADDRESS = ethers.hexlify(ethers.randomBytes(20)).toLowerCase();
 
-    // const BUCKETS: BucketStruct = {
-    //     token: TOKEN_ADDRESS,
-    //     interval: 2,
-    //     amount: 32n,
-    // }
+    let bucketTag: string;
+    let bucketData: BucketStruct;
 
-    let bucket: EndpointStruct;
-    let bucketId: string;
+    let endpointTag: string;
+    let endpointData: EndpointStruct;
 
     let dao: Signer;
     let account: Signer;
@@ -39,12 +38,12 @@ describe("FluentProvider", function () {
             kind: 'uups',
             redeployImplementation: 'always'
         }).then(x => x.connect(account.signer)) as FluentProvider;
-        contractAddress = await contract.getAddress()
+        contractAddress = await contract.getAddress();
 
-        bucket = getEndpoint(TOKEN_ADDRESS, Interval.Monthly);
-        bucketId = `${ethers.keccak256(abi.encode(["address", "bytes4"], [bucket.token, bucket.bucket]))}`.slice(0, 10);
+        [bucketData, bucketTag] = getBucket(Interval.Monthly, "Fluenta");
+        [endpointData, endpointTag] = getEndpoint(TOKEN_ADDRESS, bucketTag);
 
-        await contract.openProvider(provider.validName, [bucket]);
+        await contract.openProvider(provider.validName, [bucketData], [endpointData]);
 
         providerId = ethers.keccak256(abi.encode(["address", "string"], [account.address, provider.validName]))
     });
@@ -58,16 +57,16 @@ describe("FluentProvider", function () {
         });
 
         it("# 1.2 Should revert with empty buckets", async function () {
-            await expect(contract.openProvider(provider.validName, [])).to.be.revertedWithCustomError(contract, "ProviderEndpointsInvalid");
+            await expect(contract.openProvider(provider.validName, [], [])).to.be.revertedWithCustomError(contract, "ProviderParamsInvalid");
         });
 
         it("# 1.3 Should revert with invalid name", async function () {
-            await expect(contract.openProvider(provider.invalidName, [bucket])).to.be.revertedWithCustomError(contract, "ProviderNameInvalid");
-            await expect(contract.openProvider("", [bucket])).to.be.revertedWithCustomError(contract, "ProviderNameInvalid");
+            await expect(contract.openProvider(provider.invalidName, [bucketData], [endpointData])).to.be.revertedWithCustomError(contract, "ProviderNameInvalid");
+            await expect(contract.openProvider("", [bucketData], [endpointData])).to.be.revertedWithCustomError(contract, "ProviderNameInvalid");
         });
 
         it("# 1.4 Should revert if already exists", async function () {
-            await expect(contract.openProvider(provider.validName, [bucket])).to.be.revertedWithCustomError(contract, "ProviderAlreadyExists");
+            await expect(contract.openProvider(provider.validName, [bucketData], [endpointData])).to.be.revertedWithCustomError(contract, "ProviderAlreadyExists");
         });
     });
 
@@ -125,42 +124,42 @@ describe("FluentProvider", function () {
             it("# 4.1.1 Should allow account to create a bucket", async function () {
                 const token = ethers.hexlify(ethers.randomBytes(20))
 
-                await expect(contract.createEndpoint(providerId, { ...bucket, token })).to.not.be.reverted
+                await expect(contract.createEndpoint(providerId, { ...endpointData, token })).to.not.be.reverted
             });
 
             it("# 4.1.2 Should revert if attacker attempts to create a bucket", async function () {
                 const token = ethers.hexlify(ethers.randomBytes(20))
-                await expect(contract.connect(attacker.signer).createEndpoint(providerId, { ...bucket, token }))
+                await expect(contract.connect(attacker.signer).createEndpoint(providerId, { ...endpointData, token }))
                     .to.be.revertedWithCustomError(contract, 'ProviderUnauthorizedAccount').withArgs(attacker.address)
             });
 
             it("# 4.1.3 Should revert if provider does not exist", async function () {
                 const provider = ethers.hexlify(ethers.randomBytes(32))
 
-                await expect(contract.createEndpoint(provider, bucket))
+                await expect(contract.createEndpoint(provider, endpointData))
                     .to.be.revertedWithCustomError(contract, 'ProviderDoesNotExist')
             });
 
             it("# 4.1.3 Should revert if bucket already exists", async function () {
-                await expect(contract.createEndpoint(providerId, bucket))
+                await expect(contract.createEndpoint(providerId, endpointData))
                     .to.be.revertedWithCustomError(contract, 'EndpointAlreadyExists')
             });
         });
 
         describe("Remove", function () {
             it("# 4.2.1 Should allow account to remove a bucket", async function () {
-                await expect(contract.removeEndpoint(providerId, bucketId)).to.not.be.reverted
+                await expect(contract.removeEndpoint(providerId, endpointTag)).to.not.be.reverted
             });
 
             it("# 4.2.2 Should revert if attacker attempts to remove a bucket", async function () {
-                await expect(contract.connect(attacker.signer).removeEndpoint(providerId, bucketId))
+                await expect(contract.connect(attacker.signer).removeEndpoint(providerId, endpointTag))
                     .to.be.revertedWithCustomError(contract, 'ProviderUnauthorizedAccount').withArgs(attacker.address)
             });
 
             it("# 4.2.3 Should revert if provider does not exist", async function () {
                 let random = ethers.hexlify(ethers.randomBytes(32));
 
-                await expect(contract.removeEndpoint(random, bucketId))
+                await expect(contract.removeEndpoint(random, endpointTag))
                     .to.be.revertedWithCustomError(contract, "ProviderDoesNotExist");
             });
 
