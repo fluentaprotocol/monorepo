@@ -59,6 +59,7 @@ contract FluentProvider is
         __UUPSUpgradeable_init();
     }
 
+    /** Provider Methods */
     function openProvider(
         string calldata name,
         Bucket[] calldata buckets,
@@ -119,17 +120,21 @@ contract FluentProvider is
         address account = _msgSender();
         Provider storage provider_ = _getProvider(provider);
 
+        // Ensure only the owner has access
         if (account != provider_.owner) {
             revert ProviderUnauthorizedAccount(account);
         }
 
-        provider_.close();
-
+        // Delete all endpoint and bucket data
         delete _buckets[provider];
         delete _endpoints[provider];
+
+        //  Delete provider information
+        provider_.close();
     }
 
     function transferProvider(bytes32 provider, address account) external {
+        // Ensure we cannot assign invalid owner addresses
         if (account == address(0)) {
             revert ProviderInvalidAccount(account);
         }
@@ -137,37 +142,36 @@ contract FluentProvider is
         address sender = _msgSender();
         Provider storage provider_ = _getProvider(provider);
 
+        // Ensure only the owner has access
         if (sender != provider_.owner) {
             revert ProviderUnauthorizedAccount(sender);
         }
 
+        // We cannot transfer ownership to ourselves
         if (account == provider_.owner) {
             revert ProviderInvalidAccount(account);
         }
 
+        // Set the owner adderss
         provider_.owner = account;
     }
 
-    function getProvider(
-        bytes32 provider
-    ) external view returns (string memory name, address owner) {
-        Provider storage provider_ = _providers[provider];
+    /** Bucket Methods */
+    function createBucket(bytes32 provider, Bucket calldata data) external {
+        address account = _msgSender();
 
-        if (!provider_.exists()) {
-            revert ProviderDoesNotExist();
+        Provider storage provider_ = _getProvider(provider);
+        if (provider_.owner != account) {
+            revert ProviderUnauthorizedAccount(account);
         }
 
-        name = provider_.name;
-        owner = provider_.owner;
+        BucketCollection storage buckets_ = _buckets[provider];
+        if (!buckets_.add(data.tag(), data)) {
+            revert BucketAlreadyExists();
+        }
     }
 
-    function getProviderEndpoints(
-        bytes32 id
-    ) external view returns (bytes4[] memory) {
-        return _endpoints[id].tags;
-    }
-
-    function createEndpoint(bytes32 provider, Endpoint calldata data) external {
+    function removeBucket(bytes32 provider, bytes4 tag) external {
         address account = _msgSender();
         Provider storage provider_ = _getProvider(provider);
 
@@ -175,10 +179,38 @@ contract FluentProvider is
             revert ProviderUnauthorizedAccount(account);
         }
 
-        EndpointCollection storage endpoints_ = _endpoints[provider];
-        bytes4 tag = data.tag();
+        BucketCollection storage buckets_ = _buckets[provider];
+        bool exists = buckets_.remove(tag);
 
-        bool success = endpoints_.add(tag, data);
+        if (!exists) {
+            revert BucketDoesNotExist();
+        }
+    }
+
+    function renameBucket(
+        bytes32 provider,
+        bytes4 bucket,
+        string calldata name
+    ) external {
+        address account = _msgSender();
+
+        if (_getProvider(provider).owner != account) {
+            revert ProviderUnauthorizedAccount(account);
+        }
+
+        _getBucket(provider, bucket).name = name;
+    }
+
+    /** Endpoint Methods */
+    function createEndpoint(bytes32 provider, Endpoint calldata data) external {
+        address account = _msgSender();
+
+        if (_getProvider(provider).owner != account) {
+            revert ProviderUnauthorizedAccount(account);
+        }
+
+        EndpointCollection storage endpoints_ = _endpoints[provider];
+        bool success = endpoints_.add(data.tag(), data);
 
         if (!success) {
             revert EndpointAlreadyExists();
@@ -187,14 +219,12 @@ contract FluentProvider is
 
     function removeEndpoint(bytes32 provider, bytes4 tag) external {
         address account = _msgSender();
-        Provider storage provider_ = _getProvider(provider);
 
-        if (provider_.owner != account) {
+        if (_getProvider(provider).owner != account) {
             revert ProviderUnauthorizedAccount(account);
         }
 
         EndpointCollection storage endpoints_ = _endpoints[provider];
-
         bool exists = endpoints_.remove(tag);
 
         if (!exists) {
@@ -208,9 +238,7 @@ contract FluentProvider is
         uint256 amount
     ) external {
         address account = _msgSender();
-        Provider storage provider_ = _getProvider(provider);
-
-        if (provider_.owner != account) {
+        if (_getProvider(provider).owner != account) {
             revert ProviderUnauthorizedAccount(account);
         }
 
@@ -219,7 +247,8 @@ contract FluentProvider is
         endpoint_.amount = amount;
     }
 
-    function getEndpoint(
+    /** View Methods */
+    function getTransaction(
         bytes32 provider,
         bytes4 endpoint
     )
@@ -234,16 +263,34 @@ contract FluentProvider is
     {
         Provider storage provider_ = _getProvider(provider);
         Endpoint storage endpoint_ = _getEndpoint(provider, endpoint);
-        Bucket storage bucket_ = _getBucket(provider, endpoint_.bucket);
 
-        return (
-            endpoint_.amount,
-            endpoint_.token,
-            provider_.owner,
-            bucket_.interval
-        );
+        Interval interval_ = _getBucket(provider, endpoint_.bucket).interval;
+
+        return (endpoint_.amount, endpoint_.token, provider_.owner, interval_);
     }
 
+    function getProvider(
+        bytes32 provider
+    ) external view returns (string memory name, address owner) {
+        Provider storage provider_ = _getProvider(provider);
+
+        name = provider_.name;
+        owner = provider_.owner;
+    }
+
+    function getProviderEndpoints(
+        bytes32 id
+    ) external view returns (bytes4[] memory) {
+        return _endpoints[id].tags;
+    }
+
+    function getProviderBuckets(
+        bytes32 id
+    ) external view returns (bytes4[] memory) {
+        return _buckets[id].tags;
+    }
+
+    /** Utility Methods */
     function _getBucket(
         bytes32 provider,
         bytes4 bucket

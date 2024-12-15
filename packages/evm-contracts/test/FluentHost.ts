@@ -101,7 +101,7 @@ describe("FluentHost", function () {
         beforeEach(async function () {
             [bucketData, bucketTag] = getBucket(Interval.Monthly, "Fluenta");
             [endpointData, endpointTag] = getEndpoint(tokenAddress, bucketTag);
-    
+
             providerId = ethers.keccak256(abi.encode(["address", "string"], [service.address, provider.validName]))
             channelId = ethers.keccak256(abi.encode(["bytes32", "address"], [providerId, account.address]))
 
@@ -167,31 +167,47 @@ describe("FluentHost", function () {
                 await expect(host.openChannel(providerId, endpointTag))
                     .to.be.revertedWithCustomError(host, "ChannelAlreadyExists").withArgs(channelId);
             });
-        })
 
+            it("# 2.3.2 Should correctly update the data and start from the current timestamp", async function () {
+                await expect(host.openChannel(providerId, endpointTag))
+                    .to.be.revertedWithCustomError(host, "ChannelAlreadyExists").withArgs(channelId);
+            });
+        })
+        
         describe("Process", function () {
             it("# 2.4.1 Should allow the channel to be processed", async function () {
                 const current = new Date(parseInt(block.timestamp) * 1e3);
                 const expired = new Date(current.setMonth(current.getMonth() + 1)).valueOf() / 1e3;
-
+                
                 await ethers.provider.send("evm_setNextBlockTimestamp", [expired - (GRACE / 2)]);
                 await ethers.provider.send("evm_mine", []);
-
-
+                
+                
                 await expect(host.connect(processor.signer).processChannel(channelId))
-                    .to.not.be.reverted;
+                .to.not.be.reverted;
             });
-
+            
             it("# 2.4.2 Should revert if the channel does not exists", async function () {
                 const randomId = ethers.randomBytes(32);
-
+                
                 await expect(host.connect(processor.signer).processChannel(randomId))
-                    .to.be.revertedWithCustomError(host, "ChannelDoesNotExist").withArgs(randomId);
+                .to.be.revertedWithCustomError(host, "ChannelDoesNotExist").withArgs(randomId);
             });
-
+            
             it("# 2.4.3 Should revert if the channel is locked", async function () {
                 await expect(host.connect(processor.signer).processChannel(channelId))
-                    .to.be.revertedWithCustomError(host, "ChannelLocked").withArgs(channelId);
+                .to.be.revertedWithCustomError(host, "ChannelLocked").withArgs(channelId);
+            });
+        })
+        
+        describe("State", function () {
+            it("# 2.3.1 Should correctly return expired chanel state", async function () {
+            });
+            
+            it("# 2.3.1 Should correctly return unlocked channel state", async function () {
+            });
+        
+            it("# 2.3.2 Should correctly update the data and start from the current timestamp", async function () {
             });
         })
     })

@@ -30,7 +30,7 @@ library ChannelUtils {
             address token,
             address recipient,
             Interval interval
-        ) = provider.getEndpoint(providerId, endpoint);
+        ) = provider.getTransaction(providerId, endpoint);
 
         (uint value, uint discounted) = _feeValue(total, fee, 0);
         IFluentToken(token).transact(account, recipient, value, discounted);
@@ -62,7 +62,7 @@ library ChannelUtils {
             address token,
             address recipient,
             Interval interval
-        ) = provider.getEndpoint(self.provider, self.endpoint);
+        ) = provider.getTransaction(self.provider, self.endpoint);
 
         uint256 reward;
         uint256 discount;

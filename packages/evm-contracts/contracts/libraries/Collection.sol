@@ -23,7 +23,6 @@ library CollectionUtils {
             tags.push(tag);
 
             indicies[tag] = tags.length;
-            // self.data[tag] = data;
 
             return true;
         } else {
