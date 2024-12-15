@@ -57,7 +57,7 @@ describe("FluentProvider", function () {
         });
 
         it("# 1.2 Should revert with empty buckets", async function () {
-            await expect(contract.openProvider(provider.validName, [], [])).to.be.revertedWithCustomError(contract, "ProviderParamsInvalid");
+            await expect(contract.openProvider(provider.validName, [], [])).to.be.revertedWithCustomError(contract, "ProviderBucketsInvalid");
         });
 
         it("# 1.3 Should revert with invalid name", async function () {

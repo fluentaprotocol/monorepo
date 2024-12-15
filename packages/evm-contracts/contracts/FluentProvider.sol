@@ -41,7 +41,7 @@ contract FluentProvider is
 
     error ProviderAlreadyExists();
     error ProviderDoesNotExist();
-    error ProviderParamsInvalid();
+    error ProviderBucketsInvalid();
     error ProviderNameInvalid();
 
     error EndpointAlreadyExists();
@@ -66,61 +66,50 @@ contract FluentProvider is
     ) external returns (bytes32) {
         address account = _msgSender();
 
-        // Validate inputs
+        // Ensure there is at least one bucket
         if (buckets.length == 0) {
-            revert ProviderParamsInvalid();
+            revert ProviderBucketsInvalid();
         }
 
+        // Ensure the name is always between 1 and 32 characters long
         if (bytes(name).length > 32 || bytes(name).length == 0) {
             revert ProviderNameInvalid();
         }
 
+        // Load the storage pointer from the provider mapping
         bytes32 provider = ProviderUtils.id(name, account);
         Provider storage provider_ = _providers[provider];
 
+        // Ensure the provider does not already exist
         if (provider_.exists()) {
             revert ProviderAlreadyExists();
         }
 
+        // Insert all the buckets
         BucketCollection storage buckets_ = _buckets[provider];
-
-        // Cache length for efficiency and iterate buckets
-        uint bucketLength = buckets.length;
-        for (uint i; i < bucketLength; ) {
-            Bucket calldata bucket = buckets[i];
-            bool success = buckets_.add(bucket.tag(), bucket);
-
-            if (!success) {
+        for (uint i; i < buckets.length; i++) {
+            if (!buckets_.add(buckets[i].tag(), buckets[i])) {
                 revert EndpointAlreadyExists();
-            }
-
-            unchecked {
-                ++i;
             }
         }
 
+        // Insert all the endpoints
         EndpointCollection storage endpoints_ = _endpoints[provider];
-
-        // Cache length for efficiency and iterate buckets
-        uint endpointsLen = endpoints.length;
-        for (uint i; i < endpointsLen; ) {
+        for (uint i; i < endpoints.length; i++) {
             Endpoint calldata endpoint = endpoints[i];
 
-            if (endpoint.bucket != bytes4(0)) {
-                // TODO check if endpoint bucket exists
+            // Ensure the bucket exists
+            if (!buckets_.contains(endpoint.bucket)) {
+                revert BucketDoesNotExist();
             }
 
-            bool success = endpoints_.add(endpoint.tag(), endpoint);
-
-            if (!success) {
+            // Insert the endpoint, returns false if the endpoint already exists
+            if (!endpoints_.add(endpoint.tag(), endpoint)) {
                 revert EndpointAlreadyExists();
-            }
-
-            unchecked {
-                ++i;
             }
         }
 
+        // Set the actual provider information
         provider_.open(account, name);
 
         return provider;
@@ -135,6 +124,9 @@ contract FluentProvider is
         }
 
         provider_.close();
+
+        delete _buckets[provider];
+        delete _endpoints[provider];
     }
 
     function transferProvider(bytes32 provider, address account) external {
