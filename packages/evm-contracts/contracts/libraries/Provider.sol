@@ -99,7 +99,13 @@ library ProviderUtils {
         return tag;
     }
 
-    function removeBucket(Provider storage self, bytes4 bucket) internal {}
+    function removeBucket(Provider storage self, bytes4 tag) internal {
+        if (!self.buckets.contains(tag)) {
+            revert BucketDoesNotExist();
+        }
+
+        self.buckets.remove(tag);
+    }
 
     function modifyBucket(Provider storage self, bytes4 bucket) internal {}
 }

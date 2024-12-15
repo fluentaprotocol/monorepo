@@ -124,7 +124,6 @@ describe("FluentProvider", function () {
         describe("Create", function () {
             it("# 4.1.1 Should allow account to create a bucket", async function () {
                 const token = ethers.hexlify(ethers.randomBytes(20))
-                // const newBucketId = `${ethers.keccak256(abi.encode(["address", "uint64"], [token, bucket.interval]))}`.slice(0, 10);
 
                 await expect(contract.createBucket(providerId, { ...bucket, token })).to.not.be.reverted
             });
@@ -150,25 +149,26 @@ describe("FluentProvider", function () {
 
         describe("Remove", function () {
             it("# 4.2.1 Should allow account to remove a bucket", async function () {
+                await expect(contract.removeBucket(providerId, bucketId)).to.not.be.reverted
             });
 
             it("# 4.2.2 Should revert if attacker attempts to remove a bucket", async function () {
-                //         // await expect(contract.connect(attacker.signer).addBucket(provider, name, interval))
-                //         //     .to.be.revertedWithCustomError(contract, "ProviderUnauthorizedAccount").withArgs(attacker.address)
+                await expect(contract.connect(attacker.signer).removeBucket(providerId, bucketId))
+                    .to.be.revertedWithCustomError(contract, 'ProviderUnauthorizedAccount').withArgs(attacker.address)
             });
 
             it("# 4.2.3 Should revert if provider does not exist", async function () {
-                //         // let random = ethers.hexlify(ethers.randomBytes(32));
+                let random = ethers.hexlify(ethers.randomBytes(32));
 
-                //         // await expect(contract.addBucket(random, name, interval))
-                //         //     .to.be.revertedWithCustomError(contract, "ProviderDoesNotExist");
+                await expect(contract.removeBucket(random, bucketId))
+                    .to.be.revertedWithCustomError(contract, "ProviderDoesNotExist");
             });
 
             it("# 4.2.3 Should revert if bucket does not exist", async function () {
-                //         // let random = ethers.hexlify(ethers.randomBytes(32));
+                let random = ethers.hexlify(ethers.randomBytes(4));
 
-                //         // await expect(contract.addBucket(random, name, interval))
-                //         //     .to.be.revertedWithCustomError(contract, "ProviderDoesNotExist");
+                await expect(contract.removeBucket(providerId, random))
+                    .to.be.revertedWithCustomError(contract, "BucketDoesNotExist");
             });
         })
 

@@ -40,7 +40,6 @@ contract FluentProvider is
     error ProviderDoesNotExist();
     error ProviderBucketsInvalid();
     error ProviderNameInvalid();
-    // error BucketDoesNotExist();
 
     mapping(bytes32 => Provider) private _providers;
 
