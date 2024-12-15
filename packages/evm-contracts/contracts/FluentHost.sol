@@ -26,13 +26,7 @@ contract FluentHost is IFluentHost, UUPSUpgradeable, ContextUpgradeable {
     using ChannelUtils for Channel;
     using BucketUtils for Bucket;
 
-    // uint32 private baseFee;
-    // uint32 private minReward;
-    // uint32 private maxReward;
-
-    // uint64 private constant PROCESS_PERIOD = 48 * 60 * 60; // 2 DAYS
     uint32 private constant FEE = 8_000; // 8%
-    // uint32 private constant MAX_DISCOUNT = 3_000; // 3%
 
     uint64 public gracePeriod;
     uint256 public minReward;
@@ -40,8 +34,6 @@ contract FluentHost is IFluentHost, UUPSUpgradeable, ContextUpgradeable {
 
     IFluentDao public dao;
     IFluentProvider public provider;
-    // IFluentTokenFactory tokenFactory;
-    // IFluentProviderFactory private _providerFactory;
 
     error ChannelLocked(bytes32 channel);
     error ChannelUnauthorized(address account);

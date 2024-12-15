@@ -8,12 +8,18 @@ struct Provider {
     bytes32 id;
     string name;
     address owner;
+    // mapping(bytes4 group => uint) _groups;
+
+    // groups
     BucketCollection buckets;
 }
 
 library ProviderUtils {
     using BucketUtils for Bucket;
     using CollectionUtils for *;
+
+    error BucketAlreadyExists();
+    error BucketDoesNotExist();
 
     event BucketCreated(bytes32 indexed provider, bytes4 bucket);
 
@@ -50,18 +56,43 @@ library ProviderUtils {
         delete self.owner;
         delete self.name;
         delete self.id;
-        // delete self.buckets;
+
+        self.buckets.clear();
     }
 
     function exists(Provider storage self) internal view returns (bool) {
         return self.owner != address(0);
     }
 
+    // function hasBucket(
+    //     Provider storage self,
+    //     bytes4 tag
+    // ) internal view returns (bool) {
+    //     return self.buckets.contains(tag);
+    // }
+
+    function getBucket(
+        Provider storage self,
+        bytes4 tag
+    ) internal view returns (Bucket storage) {
+        if (!self.buckets.contains(tag)) {
+            revert BucketDoesNotExist();
+        }
+
+        return self.buckets.get(tag);
+    }
+
     function addBucket(
         Provider storage self,
         Bucket calldata data
     ) internal returns (bytes4) {
-        bytes4 tag = self.buckets.add(data);
+        bytes4 tag = data.tag();
+
+        if (self.buckets.contains(tag)) {
+            revert BucketAlreadyExists();
+        }
+
+        self.buckets.add(tag, data);
 
         emit BucketCreated(self.id, tag);
 

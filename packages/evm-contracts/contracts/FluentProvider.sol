@@ -40,10 +40,9 @@ contract FluentProvider is
     error ProviderDoesNotExist();
     error ProviderBucketsInvalid();
     error ProviderNameInvalid();
-    error BucketDoesNotExist();
+    // error BucketDoesNotExist();
 
-    // mapping(bytes32 id => mapping(bytes4 => Bucket)) private _buckets;
-    mapping(bytes32 id => Provider) private _providers;
+    mapping(bytes32 => Provider) private _providers;
 
     function initialize() external initializer {
         __Context_init();
@@ -77,111 +76,111 @@ contract FluentProvider is
         return id;
     }
 
-    function closeProvider(bytes32 id) external {
+    function closeProvider(bytes32 provider) external {
         address account = _msgSender();
-        Provider storage provider = _providers[id];
+        Provider storage provider_ = _providers[provider];
 
-        if (!provider.exists()) {
+        if (!provider_.exists()) {
             revert ProviderDoesNotExist();
         }
 
-        if (account != provider.owner) {
+        if (account != provider_.owner) {
             revert ProviderUnauthorizedAccount(account);
         }
 
-        provider.close();
+        provider_.close();
     }
 
-    function transferProvider(bytes32 id, address account) external {
+    function transferProvider(bytes32 provider, address account) external {
         if (account == address(0)) {
             revert ProviderInvalidAccount(account);
         }
 
         address sender = _msgSender();
-        Provider storage provider = _providers[id];
+        Provider storage provider_ = _providers[provider];
 
-        if (!provider.exists()) {
+        if (!provider_.exists()) {
             revert ProviderDoesNotExist();
         }
 
-        if (sender != provider.owner) {
+        if (sender != provider_.owner) {
             revert ProviderUnauthorizedAccount(sender);
         }
 
-        if (account == provider.owner) {
+        if (account == provider_.owner) {
             revert ProviderInvalidAccount(account);
         }
 
-        provider.owner = account;
+        provider_.owner = account;
     }
 
-    function providerData(
-        bytes32 id
+    function getProvider(
+        bytes32 provider
     ) external view returns (string memory name, address owner) {
-        Provider storage provider = _providers[id];
+        Provider storage provider_ = _providers[provider];
 
-        if (!provider.exists()) {
+        if (!provider_.exists()) {
             revert ProviderDoesNotExist();
         }
 
-        name = provider.name;
-        owner = provider.owner;
+        name = provider_.name;
+        owner = provider_.owner;
     }
 
-    function providerBuckets(
-        bytes32 id
-    ) external view returns (bytes4[] memory) {
-        return _providers[id].buckets.ids;
-    }
+    // function getProviderBuckets(
+    //     bytes32 id
+    // ) external view returns (bytes4[] memory) {
+    //     return _providers[id].buckets.tags;
+    // }
 
-    function createBucket(bytes32 id, Bucket calldata data) external {
+    function createBucket(bytes32 provider, Bucket calldata data) external {
         address account = _msgSender();
-        Provider storage provider = _providers[id];
+        Provider storage provider_ = _providers[provider];
 
-        if (!provider.exists()) {
+        if (!provider_.exists()) {
             revert ProviderDoesNotExist();
         }
 
-        if (provider.owner != account) {
+        if (provider_.owner != account) {
             revert ProviderUnauthorizedAccount(account);
         }
 
-        // provider.addBucket();
+        provider_.addBucket(data);
     }
 
-    function removeBucket(bytes32 id, bytes4 bucket) external {
+    function removeBucket(bytes32 provider, bytes4 tag) external {
         address account = _msgSender();
-        Provider storage provider = _providers[id];
+        Provider storage provider_ = _providers[provider];
 
-        if (!provider.exists()) {
+        if (!provider_.exists()) {
             revert ProviderDoesNotExist();
         }
 
-        if (provider.owner != account) {
+        if (provider_.owner != account) {
             revert ProviderUnauthorizedAccount(account);
         }
 
-        provider.removeBucket(bucket);
+        provider_.removeBucket(tag);
     }
 
-    function modifyBucket(bytes32 id, bytes4 bucket) external {
+    function modifyBucket(bytes32 provider, bytes4 tag) external {
         address account = _msgSender();
-        Provider storage provider = _providers[id];
+        Provider storage provider_ = _providers[provider];
 
-        if (!provider.exists()) {
+        if (!provider_.exists()) {
             revert ProviderDoesNotExist();
         }
 
-        if (provider.owner != account) {
+        if (provider_.owner != account) {
             revert ProviderUnauthorizedAccount(account);
         }
 
-        provider.modifyBucket(bucket);
+        provider_.modifyBucket(tag);
     }
 
-    function bucketData(
+    function getBucket(
         bytes32 provider,
-        bytes4 bucket
+        bytes4 tag
     )
         external
         view
@@ -198,11 +197,8 @@ contract FluentProvider is
             revert ProviderDoesNotExist();
         }
 
-        Bucket storage bucket_ = provider_.buckets.get(bucket);
 
-        if (!bucket_.exists()) {
-            revert BucketDoesNotExist();
-        }
+        Bucket storage bucket_ = provider_.getBucket(tag);
 
         return (
             bucket_.amount,

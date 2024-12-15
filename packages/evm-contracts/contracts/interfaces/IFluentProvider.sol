@@ -6,7 +6,7 @@ import {Bucket} from "../libraries/Bucket.sol";
 import {Interval} from "../libraries/Interval.sol";
 
 interface IFluentProvider {
-    function bucketData(
+    function getBucket(
         bytes32 provider,
         bytes4 bucket
     ) external returns (uint256 value, address token, address recipient, Interval interval);

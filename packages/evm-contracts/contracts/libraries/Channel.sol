@@ -6,8 +6,6 @@ import {DateTimeUtils} from "./DateTime.sol";
 import {IFluentProvider} from "../interfaces/IFluentProvider.sol";
 import {IFluentToken} from "../interfaces/IFluentToken.sol";
 
-import "hardhat/console.sol";
-
 struct Channel {
     bytes32 provider;
     address account;
@@ -32,7 +30,7 @@ library ChannelUtils {
             address token,
             address recipient,
             Interval interval
-        ) = provider.bucketData(providerId, bucketId);
+        ) = provider.getBucket(providerId, bucketId);
 
         (uint value, uint discounted) = _feeValue(total, fee, 0);
         IFluentToken(token).transact(account, recipient, value, discounted);
@@ -64,7 +62,7 @@ library ChannelUtils {
             address token,
             address recipient,
             Interval interval
-        ) = provider.bucketData(self.provider, self.bucket);
+        ) = provider.getBucket(self.provider, self.bucket);
 
         uint256 reward;
         uint256 discount;
@@ -109,7 +107,7 @@ library ChannelUtils {
     }
 
     function isExpired(Channel storage self) internal view returns (bool) {
-        return block.timestamp < self.expired;
+        return block.timestamp >= self.expired;
     }
 
     function _feeValue(
