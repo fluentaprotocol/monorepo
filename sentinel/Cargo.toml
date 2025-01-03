@@ -1,0 +1,14 @@
+[package]
+name = "sentinel"
+version = "0.1.0"
+edition = "2021"
+
+description = "A Rust application for processing Ethereum smart contract events and storing them in a local database."
+authors = ["Your Name <your.email@example.com>"]
+license = "MIT"
+
+[dependencies]
+tokio = { version = "1", features = ["full"] }
+sqlx = { version = "0.8", features = ["runtime-tokio-native-tls", "sqlite", "postgres"] }
+web3 = { version = "0.19" }
+dotenv = "0.15"
